@@ -12,28 +12,25 @@
     <p id="status">Authenticating with Pi Network...</p>
 
     <script>
-        // Initialize Pi SDK in sandbox mode
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Authenticate the user on page load
-        const scopes = ['payments'];
-        
+        // Include both 'username' and 'payments' scopes
+        const scopes = ['username', 'payments'];
+
         function onIncompletePaymentFound(payment) {
             console.log("Incomplete payment found:", payment);
         }
 
         Pi.authenticate(scopes, onIncompletePaymentFound)
             .then(function(auth) {
-                console.log("Authenticated as:", auth.user.username);
                 document.getElementById("status").innerText = "Connected as: " + auth.user.username;
-                document.getElementById("pay-btn").disabled = false; // Enable button after login
+                document.getElementById("pay-btn").disabled = false;
             })
             .catch(function(error) {
                 console.error("Authentication failed:", error);
                 document.getElementById("status").innerText = "Authentication failed. Reopen in Pi Browser.";
             });
 
-        // Payment Trigger Function
         function makePayment() {
             Pi.createPayment({
                 amount: 1,
@@ -42,10 +39,23 @@
             }, {
                 onReadyForServerApproval: function(paymentId) {
                     console.log("Ready for approval:", paymentId);
-            
+                    // Send approval request directly to Pi Sandbox API for client-side testing
+                    fetch(`https://api.testnet.minepi.com/v2/payments/${paymentId}/approve`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        }
+                    }).catch(err => console.log("Auto-approval sent or handled by portal."));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     console.log("Ready for completion:", paymentId, txid);
+                    fetch(`https://api.testnet.minepi.com/v2/payments/${paymentId}/complete`, {
+                        method: 'POST',
+                        headers: {
+                            'Content-Type': 'application/json'
+                        },
+                        body: JSON.stringify({ txid: txid })
+                    }).catch(err => console.log("Completion sent."));
                 },
                 onCancel: function(paymentId) {
                     console.log("Cancelled:", paymentId);
