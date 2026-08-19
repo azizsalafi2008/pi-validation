@@ -1,1 +1,39 @@
-OK
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocHelper</title>
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <script>
+        Pi.init({ version: "2.0", sandbox: true });
+    </script>
+</head>
+<body>
+    <h1>DocHelper Application</h1>
+    <button onclick="makePayment()">Pay with Pi</button>
+
+    <script>
+        function makePayment() {
+            Pi.createPayment({
+                amount: 1,
+                memo: "DocHelper Test Payment",
+                metadata: { orderId: 1234 }
+            }, {
+                onReadyForServerApproval: function(paymentId) {
+                    console.log("Ready for approval:", paymentId);
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    console.log("Ready for completion:", paymentId, txid);
+                },
+                onCancel: function(paymentId) {
+                    console.log("Cancelled:", paymentId);
+                },
+                onError: function(error, payment) {
+                    console.error("Error:", error);
+                }
+            });
+        }
+    </script>
+</body>
+</html>
