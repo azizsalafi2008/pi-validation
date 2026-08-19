@@ -5,15 +5,35 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocHelper</title>
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <script>
-        Pi.init({ version: "2.0", sandbox: true });
-    </script>
 </head>
 <body>
     <h1>DocHelper Application</h1>
-    <button onclick="makePayment()">Pay with Pi</button>
+    <button id="pay-btn" onclick="makePayment()" disabled>Pay with Pi</button>
+    <p id="status">Authenticating with Pi Network...</p>
 
     <script>
+        // Initialize Pi SDK in sandbox mode
+        Pi.init({ version: "2.0", sandbox: true });
+
+        // Authenticate the user on page load
+        const scopes = ['payments'];
+        
+        function onIncompletePaymentFound(payment) {
+            console.log("Incomplete payment found:", payment);
+        }
+
+        Pi.authenticate(scopes, onIncompletePaymentFound)
+            .then(function(auth) {
+                console.log("Authenticated as:", auth.user.username);
+                document.getElementById("status").innerText = "Connected as: " + auth.user.username;
+                document.getElementById("pay-btn").disabled = false; // Enable button after login
+            })
+            .catch(function(error) {
+                console.error("Authentication failed:", error);
+                document.getElementById("status").innerText = "Authentication failed. Reopen in Pi Browser.";
+            });
+
+        // Payment Trigger Function
         function makePayment() {
             Pi.createPayment({
                 amount: 1,
@@ -22,6 +42,7 @@
             }, {
                 onReadyForServerApproval: function(paymentId) {
                     console.log("Ready for approval:", paymentId);
+                    alert("Payment initiated! ID: " + paymentId);
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     console.log("Ready for completion:", paymentId, txid);
