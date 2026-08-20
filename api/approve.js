@@ -16,7 +16,8 @@ export default async function handler(req, res) {
       headers: {
         'Authorization': `Key ${PI_API_KEY}`,
         'Content-Type': 'application/json'
-      }
+      },
+      body: JSON.stringify({})
     });
 
     const data = await response.json();
