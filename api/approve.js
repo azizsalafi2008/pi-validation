@@ -11,7 +11,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    const response = await fetch(`https://api.testnet.minepi.com/v2/payments/${paymentId}/approve`, {
+    const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
       method: 'POST',
       headers: {
         'Authorization': `Key ${PI_API_KEY}`,
@@ -20,12 +20,8 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-    console.log("Pi API Approval Response:", data);
-
-    // Forward Pi Network's exact HTTP status code
     return res.status(response.status).json(data);
   } catch (error) {
-    console.error("Fetch Exception:", error);
     return res.status(500).json({ error: error.message });
   }
 }
