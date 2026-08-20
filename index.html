@@ -10,15 +10,20 @@
     <h1>DocHelper Application</h1>
     <button id="pay-btn" onclick="makePayment()" disabled>Pay with Pi</button>
     <p id="status">Authenticating with Pi Network...</p>
+    <p id="log" style="color: blue;"></p>
 
     <script>
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Include both 'username' and 'payments' scopes
         const scopes = ['username', 'payments'];
 
+        function showLog(msg) {
+            document.getElementById("log").innerText = msg;
+            console.log(msg);
+        }
+
         function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found:", payment);
+            showLog("Incomplete payment found: " + payment.identifier);
         }
 
         Pi.authenticate(scopes, onIncompletePaymentFound)
@@ -27,41 +32,43 @@
                 document.getElementById("pay-btn").disabled = false;
             })
             .catch(function(error) {
-                console.error("Authentication failed:", error);
-                document.getElementById("status").innerText = "Authentication failed. Reopen in Pi Browser.";
+                showLog("Auth error: " + JSON.stringify(error));
             });
 
         function makePayment() {
+            showLog("Creating payment...");
             Pi.createPayment({
                 amount: 1,
                 memo: "DocHelper Test Payment",
                 metadata: { orderId: 1234 }
             }, {
                 onReadyForServerApproval: function(paymentId) {
-                    console.log("Ready for approval:", paymentId);
-                    // Send approval request directly to Pi Sandbox API for client-side testing
-                    fetch(`https://api.testnet.minepi.com/v2/payments/${paymentId}/approve`, {
+                    showLog("Approving payment ID: " + paymentId);
+                    fetch('/api/approve', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        }
-                    }).catch(err => console.log("Auto-approval sent or handled by portal."));
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    })
+                    .then(res => res.json())
+                    .then(data => showLog("Approve response: " + JSON.stringify(data)))
+                    .catch(err => showLog("Approval fetch error: " + err));
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
-                    console.log("Ready for completion:", paymentId, txid);
-                    fetch(`https://api.testnet.minepi.com/v2/payments/${paymentId}/complete`, {
+                    showLog("Completing payment with TXID: " + txid);
+                    fetch('/api/complete', {
                         method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json'
-                        },
-                        body: JSON.stringify({ txid: txid })
-                    }).catch(err => console.log("Completion sent."));
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                    })
+                    .then(res => res.json())
+                    .then(data => showLog("Payment Complete! " + JSON.stringify(data)))
+                    .catch(err => showLog("Completion fetch error: " + err));
                 },
                 onCancel: function(paymentId) {
-                    console.log("Cancelled:", paymentId);
+                    showLog("Payment cancelled by user.");
                 },
                 onError: function(error, payment) {
-                    console.error("Error:", error);
+                    showLog("Payment SDK error: " + JSON.stringify(error));
                 }
             });
         }
