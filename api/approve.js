@@ -4,7 +4,9 @@ export default async function handler(req, res) {
   }
 
   const { paymentId } = req.body;
-  const PI_API_KEY = process.env.PI_API_KEY;
+  
+  // REPLACE THE TEXT INSIDE QUOTES WITH YOUR 128-CHARACTER PI API KEY
+  const PI_API_KEY = "PASTE_YOUR_PI_API_KEY_HERE";
 
   if (!paymentId) {
     return res.status(400).json({ error: 'Missing paymentId' });
@@ -14,7 +16,7 @@ export default async function handler(req, res) {
     const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
       method: 'POST',
       headers: {
-        'Authorization': `Key ${PI_API_KEY}`,
+        'Authorization': `Key ${PI_API_KEY.trim()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({})
