@@ -23,7 +23,20 @@
         }
 
         function onIncompletePaymentFound(payment) {
-            showLog("Incomplete payment found: " + payment.identifier);
+            showLog("Clearing incomplete payment: " + payment.identifier);
+            if (payment.transaction && payment.transaction.txid) {
+                fetch('/api/complete', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+                });
+            } else {
+                fetch('/api/approve', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ paymentId: payment.identifier })
+                });
+            }
         }
 
         Pi.authenticate(scopes, onIncompletePaymentFound)
