@@ -1,75 +1,89 @@
-<script>
-    // Initialize Pi SDK (Ensure sandbox mode matches developer.pi settings)
-    Pi.init({ version: "2.0", sandbox: true });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocHelper</title>
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+</head>
+<body>
+    <h1>DocHelper Application</h1>
+    <button id="pay-btn" onclick="makePayment()">Pay with Pi</button>
+    <div id="status" style="color: blue; margin-top: 15px; font-weight: bold;"></div>
 
-    // Authenticate user on load
-    Pi.authenticate(['username', 'payments'], function(payment) {
-        showLog("Incomplete payment detected: " + payment.identifier);
-    }).then(function(auth) {
-        showLog("Connected as: " + auth.user.username);
-    }).catch(function(error) {
-        showLog("Auth error: " + error.message);
-    });
+    <script>
+        // Initialize Pi SDK
+        Pi.init({ version: "2.0", sandbox: true });
 
-    function showLog(msg) {
-        var statusDiv = document.getElementById("status");
-        if (statusDiv) {
-            statusDiv.innerText = msg;
-        }
-        console.log(msg);
-    }
-
-    function makePayment() {
-        showLog("Creating payment...");
-
-        Pi.createPayment({
-            amount: 1,
-            memo: "DocHelper Test Payment",
-            metadata: { orderId: 1234 }
-        }, {
-            onReadyForServerApproval: function(paymentId) {
-                showLog("Approving payment ID: " + paymentId);
-                
-                // Crucial 'return' keyword passes the promise to the Pi SDK
-                return fetch('/api/approve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: paymentId })
-                })
-                .then(function(res) {
-                    return res.json();
-                })
-                .then(function(data) {
-                    showLog("Approve response: " + JSON.stringify(data));
-                })
-                .catch(function(err) {
-                    showLog("Approval fetch error: " + err.message);
-                });
-            },
-            onReadyForServerCompletion: function(paymentId, txid) {
-                showLog("Completing payment ID: " + paymentId);
-                
-                return fetch('/api/complete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: paymentId, txid: txid })
-                })
-                .then(function(res) {
-                    return res.json();
-                })
-                .then(function(data) {
-                    showLog("Completion response: " + JSON.stringify(data));
-                })
-                .catch(function(err) {
-                    showLog("Completion fetch error: " + err.message);
-                });
-            },
-            onCancel: function(paymentId) {
-                showLog("Payment cancelled: " + paymentId);
-            },
-            onError: function(error, payment) {
-                showLog("Payment error: " + (error.message || JSON.stringify(error)));
-            }
+        // Authenticate User
+        Pi.authenticate(['username', 'payments'], function(payment) {
+            showLog("Incomplete payment detected: " + payment.identifier);
+        }).then(function(auth) {
+            showLog("Connected as: " + auth.user.username);
+        }).catch(function(error) {
+            showLog("Auth error: " + error.message);
         });
-    }
-</script>
+
+        function showLog(msg) {
+            var statusDiv = document.getElementById("status");
+            if (statusDiv) {
+                statusDiv.innerText = msg;
+            }
+            console.log(msg);
+        }
+
+        function makePayment() {
+            showLog("Creating payment...");
+
+            Pi.createPayment({
+                amount: 1,
+                memo: "DocHelper Test Payment",
+                metadata: { orderId: 1234 }
+            }, {
+                onReadyForServerApproval: function(paymentId) {
+                    showLog("Approving payment ID: " + paymentId);
+                    
+                    return fetch('/api/approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId })
+                    })
+                    .then(function(res) {
+                        return res.json();
+                    })
+                    .then(function(data) {
+                        showLog("Approve response: " + JSON.stringify(data));
+                    })
+                    .catch(function(err) {
+                        showLog("Approval fetch error: " + err.message);
+                    });
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    showLog("Completing payment ID: " + paymentId);
+                    
+                    return fetch('/api/complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                    })
+                    .then(function(res) {
+                        return res.json();
+                    })
+                    .then(function(data) {
+                        showLog("Completion response: " + JSON.stringify(data));
+                    })
+                    .catch(function(err) {
+                        showLog("Completion fetch error: " + err.message);
+                    });
+                },
+                onCancel: function(paymentId) {
+                    showLog("Payment cancelled: " + paymentId);
+                },
+                onError: function(error, payment) {
+                    showLog("Payment error: " + (error.message || JSON.stringify(error)));
+                }
+            });
+        }
+    </script>
+</body>
+</html>
