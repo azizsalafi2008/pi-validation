@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   const { paymentId } = req.body;
   
   // Paste your raw 128-character API key inside quotes below:
-  const PI_API_KEY = "80cd070ba51d32805e5914ae47b722d4f63f91eab83f511bf9da3ae3ef7c8609e0cbc9f69bf59f00735d2ae8c0e539a7459dcea300e3374f0504874a30fe40ac";
+  const PI_API_KEY = "w8cvuxlac4obn1w5nwmga9k55mg6nqwibfv60apt3ahzgz8coyrglempdmigzwt9";
 
   if (!paymentId) {
     return res.status(400).json({ error: 'Missing paymentId' });
