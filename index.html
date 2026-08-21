@@ -1,90 +1,75 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocHelper</title>
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-</head>
-<body>
-    <h1>DocHelper Application</h1>
-    <button id="pay-btn" onclick="makePayment()" disabled>Pay with Pi</button>
-    <p id="status">Authenticating with Pi Network...</p>
-    <p id="log" style="color: blue;"></p>
+<script>
+    // Initialize Pi SDK (Ensure sandbox mode matches developer.pi settings)
+    Pi.init({ version: "2.0", sandbox: true });
 
-    <script>
-        Pi.init({ version: "2.0", sandbox: true });
+    // Authenticate user on load
+    Pi.authenticate(['username', 'payments'], function(payment) {
+        showLog("Incomplete payment detected: " + payment.identifier);
+    }).then(function(auth) {
+        showLog("Connected as: " + auth.user.username);
+    }).catch(function(error) {
+        showLog("Auth error: " + error.message);
+    });
 
-        const scopes = ['username', 'payments'];
-
-        function showLog(msg) {
-            document.getElementById("log").innerText = msg;
-            console.log(msg);
+    function showLog(msg) {
+        var statusDiv = document.getElementById("status");
+        if (statusDiv) {
+            statusDiv.innerText = msg;
         }
+        console.log(msg);
+    }
 
-        function onIncompletePaymentFound(payment) {
-            showLog("Clearing incomplete payment: " + payment.identifier);
-            if (payment.transaction && payment.transaction.txid) {
-                fetch('/api/complete', {
+    function makePayment() {
+        showLog("Creating payment...");
+
+        Pi.createPayment({
+            amount: 1,
+            memo: "DocHelper Test Payment",
+            metadata: { orderId: 1234 }
+        }, {
+            onReadyForServerApproval: function(paymentId) {
+                showLog("Approving payment ID: " + paymentId);
+                
+                // Crucial 'return' keyword passes the promise to the Pi SDK
+                return fetch('/api/approve', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+                    body: JSON.stringify({ paymentId: paymentId })
+                })
+                .then(function(res) {
+                    return res.json();
+                })
+                .then(function(data) {
+                    showLog("Approve response: " + JSON.stringify(data));
+                })
+                .catch(function(err) {
+                    showLog("Approval fetch error: " + err.message);
                 });
-            } else {
-                fetch('/api/approve', {
+            },
+            onReadyForServerCompletion: function(paymentId, txid) {
+                showLog("Completing payment ID: " + paymentId);
+                
+                return fetch('/api/complete', {
                     method: 'POST',
                     headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: payment.identifier })
+                    body: JSON.stringify({ paymentId: paymentId, txid: txid })
+                })
+                .then(function(res) {
+                    return res.json();
+                })
+                .then(function(data) {
+                    showLog("Completion response: " + JSON.stringify(data));
+                })
+                .catch(function(err) {
+                    showLog("Completion fetch error: " + err.message);
                 });
+            },
+            onCancel: function(paymentId) {
+                showLog("Payment cancelled: " + paymentId);
+            },
+            onError: function(error, payment) {
+                showLog("Payment error: " + (error.message || JSON.stringify(error)));
             }
-        }
-
-        Pi.authenticate(scopes, onIncompletePaymentFound)
-            .then(function(auth) {
-                document.getElementById("status").innerText = "Connected as: " + auth.user.username;
-                document.getElementById("pay-btn").disabled = false;
-            })
-            .catch(function(error) {
-                showLog("Auth error: " + JSON.stringify(error));
-            });
-
-        function makePayment() {
-            showLog("Creating payment...");
-            Pi.createPayment({
-                amount: 1,
-                memo: "DocHelper Test Payment",
-                metadata: { orderId: 1234 }
-            }, {
-                onReadyForServerApproval: function(paymentId) {
-                    showLog("Approving payment ID: " + paymentId);
-                    return fetch('/api/approve', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: paymentId })
-                    })
-                    .then(res => res.json())
-                    .then(data => showLog("Approve response: " + JSON.stringify(data)))
-                    .catch(err => showLog("Approval fetch error: " + err));
-                },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    showLog("Completing payment with TXID: " + txid);
-                    return fetch('/api/complete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId: paymentId, txid: txid })
-                    })
-                    .then(res => res.json())
-                    .then(data => showLog("Payment Complete! " + JSON.stringify(data)))
-                    .catch(err => showLog("Completion fetch error: " + err));
-                },
-                onCancel: function(paymentId) {
-                    showLog("Payment cancelled by user.");
-                },
-                onError: function(error, payment) {
-                    showLog("Payment SDK error: " + JSON.stringify(error));
-                }
-            });
-        }
-    </script>
-</body>
-</html>
+        });
+    }
+</script>
