@@ -3,22 +3,61 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DocHelper</title>
-
-  <!-- Load Pi SDK First -->
+  <title>DocHelper App</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <style>
+    body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; }
+    button { background-color: #673ab7; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 8px; cursor: pointer; }
+    #status { margin-top: 20px; font-weight: bold; }
+  </style>
 </head>
 <body>
   <h1>DocHelper App</h1>
   <p>App is running successfully on Pi Testnet!</p>
+  
+  <button id="pay-btn" onclick="makeTestPayment()">Pay 1 Test Pi</button>
+  <div id="status"></div>
 
   <script>
-    // Initialize Pi SDK safely
+    // Initialize Pi SDK in Sandbox Mode
     if (typeof Pi !== 'undefined') {
       Pi.init({ version: "2.0", sandbox: true });
-      console.log("Pi SDK initialized in Testnet mode!");
-    } else {
-      console.log("Not running inside Pi Browser environment.");
+    }
+
+    function makeTestPayment() {
+      const statusDiv = document.getElementById('status');
+      statusDiv.innerText = "Authenticating...";
+
+      // Step A: Authenticate User
+      const scopes = ['payments'];
+      function onIncompletePaymentFound(payment) { statusDiv.innerText = "Incomplete payment found: " + payment.identifier; };
+
+      Pi.authenticate(scopes, onIncompletePaymentFound).then(function(auth) {
+        statusDiv.innerText = "Creating transaction...";
+
+        // Step B: Create Payment
+        Pi.createPayment({
+          amount: 1,
+          memo: "Test Payment for Step 10",
+          metadata: { orderId: "step10-test-123" }
+        }, {
+          onReadyForServerApproval: function(paymentId) {
+            statusDiv.innerText = "Payment ready for approval ID: " + paymentId;
+          },
+          onReadyForServerCompletion: function(paymentId, txid) {
+            statusDiv.innerText = "Transaction complete! TXID: " + txid;
+            alert("Step 10 Transaction Success!");
+          },
+          onCancel: function(paymentId) {
+            statusDiv.innerText = "Payment cancelled.";
+          },
+          onError: function(error, payment) {
+            statusDiv.innerText = "Payment error: " + error.message;
+          }
+        });
+      }).catch(function(error) {
+        statusDiv.innerText = "Auth failed: " + error.message;
+      });
     }
   </script>
 </body>
