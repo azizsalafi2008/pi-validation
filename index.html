@@ -12,12 +12,30 @@
     <div id="status" style="color: blue; margin-top: 15px; font-weight: bold;"></div>
 
     <script>
-        // Initialize Pi SDK
+        // Initialize Pi SDK for Testnet
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Authenticate User
+        // Authenticate User & Auto-Resolve Incomplete Payments
         Pi.authenticate(['username', 'payments'], function(payment) {
-            showLog("Incomplete payment detected: " + payment.identifier);
+            showLog("Resolving incomplete payment: " + payment.identifier);
+
+            var txid = payment.transaction ? payment.transaction.txid : "";
+
+            return fetch('/api/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ 
+                    paymentId: payment.identifier, 
+                    txid: txid 
+                })
+            })
+            .then(function(res) { return res.json(); })
+            .then(function(data) {
+                showLog("Incomplete payment resolved: " + JSON.stringify(data));
+            })
+            .catch(function(err) {
+                showLog("Error clearing payment: " + err.message);
+            });
         }).then(function(auth) {
             showLog("Connected as: " + auth.user.username);
         }).catch(function(error) {
@@ -48,9 +66,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
                     })
-                    .then(function(res) {
-                        return res.json();
-                    })
+                    .then(function(res) { return res.json(); })
                     .then(function(data) {
                         showLog("Approve response: " + JSON.stringify(data));
                     })
@@ -66,9 +82,7 @@
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId, txid: txid })
                     })
-                    .then(function(res) {
-                        return res.json();
-                    })
+                    .then(function(res) { return res.json(); })
                     .then(function(data) {
                         showLog("Completion response: " + JSON.stringify(data));
                     })
