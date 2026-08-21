@@ -1,73 +1,25 @@
-<script>
-    // 1. Initialize Pi SDK in Testnet Mode
-    Pi.init({ version: "2.0", sandbox: true });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocHelper</title>
 
-    // 2. Authenticate when page loads
-    window.onload = function() {
-        showLog("Authenticating user...");
-        
-        Pi.authenticate(['username', 'payments'], function(payment) {
-            // Auto-complete any pending incomplete payment on load
-            showLog("Resolving incomplete payment: " + payment.identifier);
-            var txid = payment.transaction ? payment.transaction.txid : "";
+  <!-- Load Pi SDK First -->
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+</head>
+<body>
+  <h1>DocHelper App</h1>
+  <p>App is running successfully on Pi Testnet!</p>
 
-            return fetch('/api/complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: payment.identifier, txid: txid })
-            })
-            .then(function(res) { return res.json(); })
-            .then(function(data) { showLog("Incomplete payment resolved."); })
-            .catch(function(err) { showLog("Error clearing payment: " + err.message); });
-        })
-        .then(function(auth) {
-            showLog("Connected as: " + auth.user.username);
-        })
-        .catch(function(error) {
-            showLog("Auth failed: " + (error.message || JSON.stringify(error)));
-        });
-    };
-
-    function showLog(msg) {
-        var statusDiv = document.getElementById("status");
-        if (statusDiv) {
-            statusDiv.innerText = msg;
-        }
-        console.log(msg);
+  <script>
+    // Initialize Pi SDK safely
+    if (typeof Pi !== 'undefined') {
+      Pi.init({ version: "2.0", sandbox: true });
+      console.log("Pi SDK initialized in Testnet mode!");
+    } else {
+      console.log("Not running inside Pi Browser environment.");
     }
-
-    function makePayment() {
-        showLog("Creating payment...");
-
-        Pi.createPayment({
-            amount: 1,
-            memo: "DocHelper Testnet Payment",
-            metadata: { orderId: 1234 }
-        }, {
-            onReadyForServerApproval: function(paymentId) {
-                showLog("Approving payment ID: " + paymentId);
-                return fetch('/api/approve', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: paymentId })
-                });
-            },
-            onReadyForServerCompletion: function(paymentId, txid) {
-                showLog("Completing payment ID: " + paymentId);
-                return fetch('/api/complete', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ paymentId: paymentId, txid: txid })
-                })
-                .then(function(res) { return res.json(); })
-                .then(function(data) { showLog("Payment Complete: " + JSON.stringify(data)); });
-            },
-            onCancel: function(paymentId) {
-                showLog("Payment cancelled.");
-            },
-            onError: function(error, payment) {
-                showLog("Payment error: " + (error.message || JSON.stringify(error)));
-            }
-        });
-    }
-</script>
+  </script>
+</body>
+</html>
