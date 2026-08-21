@@ -4,13 +4,19 @@ export default async function handler(req, res) {
   }
 
   const { paymentId, txid } = req.body;
-  const PI_API_KEY = process.env.PI_API_KEY;
+  
+  // Paste the SAME Testnet API Key you used in approve.js:
+  const PI_API_KEY = "w8cvuxlac4obn1w5nwmga9k55mg6nqwibfv60apt3ahzgz8coyrglempdmigzwt9";
+
+  if (!paymentId || !txid) {
+    return res.status(400).json({ error: 'Missing paymentId or txid' });
+  }
 
   try {
     const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
-        'Authorization': `Key ${PI_API_KEY}`,
+        'Authorization': `Key ${PI_API_KEY.trim()}`,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({ txid: txid })
