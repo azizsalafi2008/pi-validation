@@ -57,7 +57,7 @@
             }, {
                 onReadyForServerApproval: function(paymentId) {
                     showLog("Approving payment ID: " + paymentId);
-                    fetch('/api/approve', {
+                    return fetch('/api/approve', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId })
@@ -68,7 +68,7 @@
                 },
                 onReadyForServerCompletion: function(paymentId, txid) {
                     showLog("Completing payment with TXID: " + txid);
-                    fetch('/api/complete', {
+                    return fetch('/api/complete', {
                         method: 'POST',
                         headers: { 'Content-Type': 'application/json' },
                         body: JSON.stringify({ paymentId: paymentId, txid: txid })
