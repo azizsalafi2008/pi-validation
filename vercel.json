@@ -3,6 +3,10 @@
     {
       "source": "/validation-key.txt",
       "destination": "/api/validation-key.txt.js"
+    },
+    {
+      "source": "/(.*)",
+      "destination": "/index.html"
     }
   ]
 }
