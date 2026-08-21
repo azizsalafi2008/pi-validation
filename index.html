@@ -13,7 +13,7 @@
 
     <script>
         // Initialize Pi SDK for Testnet
-        Pi.init({ version: "2.0", sandbox: true });
+        Pi.init({ version: "2.0", sandbox: false });
 
         // Authenticate User & Auto-Resolve Incomplete Payments
         Pi.authenticate(['username', 'payments'], function(payment) {
