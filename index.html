@@ -1,13 +1,13 @@
 <script>
-    // 1. Initialize Pi SDK
+    // 1. Initialize Pi SDK in Testnet Mode
     Pi.init({ version: "2.0", sandbox: true });
 
-    // 2. Run authentication on page load
+    // 2. Authenticate when page loads
     window.onload = function() {
         showLog("Authenticating user...");
         
         Pi.authenticate(['username', 'payments'], function(payment) {
-            // Auto-complete incomplete payments if present
+            // Auto-complete any pending incomplete payment on load
             showLog("Resolving incomplete payment: " + payment.identifier);
             var txid = payment.transaction ? payment.transaction.txid : "";
 
@@ -41,7 +41,7 @@
 
         Pi.createPayment({
             amount: 1,
-            memo: "DocHelper Test Payment",
+            memo: "DocHelper Testnet Payment",
             metadata: { orderId: 1234 }
         }, {
             onReadyForServerApproval: function(paymentId) {
