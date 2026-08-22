@@ -28,7 +28,7 @@
       statusDiv.innerText = "Authenticating...";
 
       function onIncompletePaymentFound(payment) {
-        statusDiv.innerText = "Clearing stuck payment...";
+        statusDiv.innerText = "Clearing stuck payment: " + payment.identifier;
         fetch('/api/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -36,37 +36,46 @@
         });
       }
 
-      Pi.authenticate(['payments'], onIncompletePaymentFound).then(function(auth) {
-        statusDiv.innerText = "Creating transaction...";
+      // Wrapped in explicit try/catch block
+      try {
+        Pi.authenticate(['payments'], onIncompletePaymentFound)
+          .then(function(auth) {
+            statusDiv.innerText = "Authenticated as " + auth.user.username + "! Creating payment...";
 
-        Pi.createPayment({
-          amount: 1,
-          memo: "Step 10 Test Payment",
-          metadata: { orderId: "test-123" }
-        }, {
-          onReadyForServerApproval: function(paymentId) {
-            statusDiv.innerText = "Approving payment...";
-            fetch('/api/approve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentId })
-            }).then(() => statusDiv.innerText = "Approved! Confirm in wallet.");
-          },
-          onReadyForServerCompletion: function(paymentId, txid) {
-            statusDiv.innerText = "Completing payment...";
-            fetch('/api/complete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentId, txid })
-            }).then(() => {
-              statusDiv.innerText = "Transaction Complete! Step 10 Passed!";
-              alert("Payment successful! Step 10 complete.");
+            Pi.createPayment({
+              amount: 1,
+              memo: "Step 10 Test Payment",
+              metadata: { orderId: "test-" + Date.now() }
+            }, {
+              onReadyForServerApproval: function(paymentId) {
+                statusDiv.innerText = "Approving payment...";
+                fetch('/api/approve', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ paymentId })
+                }).then(() => statusDiv.innerText = "Approved! Confirm in wallet.");
+              },
+              onReadyForServerCompletion: function(paymentId, txid) {
+                statusDiv.innerText = "Completing payment...";
+                fetch('/api/complete', {
+                  method: 'POST',
+                  headers: { 'Content-Type': 'application/json' },
+                  body: JSON.stringify({ paymentId, txid })
+                }).then(() => {
+                  statusDiv.innerText = "Transaction Complete!";
+                  alert("Payment successful!");
+                });
+              },
+              onCancel: function(paymentId) { statusDiv.innerText = "Payment cancelled."; },
+              onError: function(error) { statusDiv.innerText = "Payment error: " + error.message; }
             });
-          },
-          onCancel: function(paymentId) { statusDiv.innerText = "Payment cancelled."; },
-          onError: function(error) { statusDiv.innerText = "Payment error: " + error.message; }
-        });
-      });
+          })
+          .catch(function(err) {
+            statusDiv.innerText = "Auth Error: " + (err.message || err);
+          });
+      } catch (err) {
+        statusDiv.innerText = "SDK Exception: " + err.message;
+      }
     }
   </script>
 </body>
