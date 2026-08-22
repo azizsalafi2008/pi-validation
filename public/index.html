@@ -19,7 +19,6 @@
   <div id="status"></div>
 
   <script>
-    // Initialize Pi SDK in Sandbox Mode
     if (typeof Pi !== 'undefined') {
       Pi.init({ version: "2.0", sandbox: true });
     }
@@ -28,35 +27,45 @@
       const statusDiv = document.getElementById('status');
       statusDiv.innerText = "Authenticating...";
 
-      // Step A: Authenticate User
-      const scopes = ['payments'];
-      function onIncompletePaymentFound(payment) { statusDiv.innerText = "Incomplete payment found: " + payment.identifier; };
+      function onIncompletePaymentFound(payment) {
+        statusDiv.innerText = "Clearing stuck payment...";
+        fetch('/api/approve', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: payment.identifier })
+        });
+      }
 
-      Pi.authenticate(scopes, onIncompletePaymentFound).then(function(auth) {
+      Pi.authenticate(['payments'], onIncompletePaymentFound).then(function(auth) {
         statusDiv.innerText = "Creating transaction...";
 
-        // Step B: Create Payment
         Pi.createPayment({
           amount: 1,
-          memo: "Test Payment for Step 10",
-          metadata: { orderId: "step10-test-123" }
+          memo: "Step 10 Test Payment",
+          metadata: { orderId: "test-123" }
         }, {
           onReadyForServerApproval: function(paymentId) {
-            statusDiv.innerText = "Payment ready for approval ID: " + paymentId;
+            statusDiv.innerText = "Approving payment...";
+            fetch('/api/approve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentId })
+            }).then(() => statusDiv.innerText = "Approved! Confirm in wallet.");
           },
           onReadyForServerCompletion: function(paymentId, txid) {
-            statusDiv.innerText = "Transaction complete! TXID: " + txid;
-            alert("Step 10 Transaction Success!");
+            statusDiv.innerText = "Completing payment...";
+            fetch('/api/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentId, txid })
+            }).then(() => {
+              statusDiv.innerText = "Transaction Complete! Step 10 Passed!";
+              alert("Payment successful! Step 10 complete.");
+            });
           },
-          onCancel: function(paymentId) {
-            statusDiv.innerText = "Payment cancelled.";
-          },
-          onError: function(error, payment) {
-            statusDiv.innerText = "Payment error: " + error.message;
-          }
+          onCancel: function(paymentId) { statusDiv.innerText = "Payment cancelled."; },
+          onError: function(error) { statusDiv.innerText = "Payment error: " + error.message; }
         });
-      }).catch(function(error) {
-        statusDiv.innerText = "Auth failed: " + error.message;
       });
     }
   </script>
