@@ -6,78 +6,62 @@
   <title>DocHelper App</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
-    body {
-      font-family: Arial, sans-serif;
-      text-align: center;
-      padding: 50px 20px;
-      background-color: #f4f4f9;
-      margin: 0;
-    }
-    h1 {
-      font-size: 2.2rem;
-      margin-bottom: 10px;
-    }
-    p {
-      color: #555;
-      margin-bottom: 30px;
-    }
-    button {
-      background-color: #006644;
-      color: white;
-      border: none;
-      padding: 15px 30px;
-      font-size: 1.1rem;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:active {
-      background-color: #004d33;
-    }
+    body { font-family: Arial, sans-serif; text-align: center; padding: 50px 20px; background-color: #f4f4f9; }
+    button { background-color: #006644; color: white; border: none; padding: 15px 25px; font-size: 1rem; border-radius: 8px; margin: 10px; cursor: pointer; }
   </style>
 </head>
 <body>
 
   <h1>DocHelper App</h1>
-  <p>App is running successfully on Pi Testnet!</p>
+  <p>Pi Testnet Verification</p>
 
-  <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
+  <!-- Step A: Register user in App DB via User-to-App payment -->
+  <button onclick="payApp()">1. Pay 0.1 Test Pi (Register User)</button>
+  <br>
+  <!-- Step B: Receive App-to-User payout -->
+  <button onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
 
   <script>
-    // Initialize Pi SDK for Testnet
     Pi.init({ version: "2.0", sandbox: true });
+
+    async function payApp() {
+      try {
+        const payment = await Pi.createPayment({
+          amount: 0.1,
+          memo: "Test Payment to Register User",
+          metadata: { type: "U2A" }
+        }, {
+          onReadyForServerApproval: (paymentId) => console.log("Approval ID:", paymentId),
+          onReadyForServerCompletion: (paymentId, txid) => alert("User Registered Successfully!"),
+          onCancel: (paymentId) => alert("Payment cancelled"),
+          onError: (error, payment) => alert("Error: " + error.message)
+        });
+      } catch (err) {
+        alert("SDK Error: " + err.message);
+      }
+    }
 
     async function requestPayout() {
       try {
-        // Authenticate user to get verified UID
-        const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
-        
-        if (!auth || !auth.user || !auth.user.uid) {
-          alert('Authentication failed: Could not retrieve Pi User UID.');
-          return;
-        }
+        const auth = await Pi.authenticate(['username', 'payments'], function(p){});
+        const userUid = auth.user.uid;
 
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: auth.user.uid, amount: 0.1 })
+          body: JSON.stringify({ uid: userUid, amount: 0.1 })
         });
 
         const data = await response.json();
-
         if (!response.ok) {
           alert('Payout error: ' + JSON.stringify(data));
         } else {
-          alert('Success! Payout created. ID: ' + (data.identifier || data.payment?.identifier || 'OK'));
+          alert('Success! Payout created: ' + JSON.stringify(data));
         }
       } catch (err) {
-        alert('SDK Error: ' + err.message);
+        alert('Error: ' + err.message);
       }
     }
-
-    function onIncompletePaymentFound(payment) {
-      console.log('Incomplete payment:', payment);
-    }
   </script>
-
 </body>
 </html>
