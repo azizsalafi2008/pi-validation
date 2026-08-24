@@ -2,7 +2,7 @@ export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
   // Paste your actual API Secret Key between the quotes below
-  const secretKey = "PASTE_YOUR_NEW_API_KEY_HERE".trim();
+  const secretKey = "Px0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
   const { uid, amount } = req.body;
 
