@@ -1,14 +1,14 @@
 export default async function handler(req, res) {
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method not allowed' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const secretKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  // Ensure your valid API key is placed here
+  const secretKey = "YOUR_API_KEY_HERE".trim();
   const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
+  
   const { uid, amount } = req.body;
 
   if (!uid) {
-    return res.status(400).json({ error: 'Missing UID in request payload.' });
+    return res.status(400).json({ error: 'Missing UID from request body.' });
   }
 
   try {
@@ -20,7 +20,7 @@ export default async function handler(req, res) {
       },
       body: JSON.stringify({
         payment: {
-          amount: Number(amount) || 0.1,
+          amount: amount || 0.1,
           memo: "App to User Testnet Payout",
           metadata: { type: "A2U" },
           uid: uid
@@ -31,10 +31,7 @@ export default async function handler(req, res) {
     const paymentData = await response.json();
 
     if (!response.ok) {
-      console.error('Pi API error response:', paymentData);
-      return res.status(response.status).json({
-        error: paymentData.message || paymentData.error || JSON.stringify(paymentData)
-      });
+      return res.status(response.status).json(paymentData);
     }
 
     return res.status(200).json(paymentData);
