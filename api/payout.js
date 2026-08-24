@@ -1,20 +1,20 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Replace with your raw App Secret Key from developer.pi (without typing "Key " in front of it)
-  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
-
-  // Formats correctly for Pi Network API
-  const formattedKey = rawKey.startsWith('Key ') ? rawKey : `Key ${rawKey}`;
+  // Paste your actual API Secret Key between the quotes below
+  const secretKey = "PASTE_YOUR_NEW_API_KEY_HERE".trim();
+  const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
   const { uid, amount } = req.body;
 
-  if (!uid) return res.status(400).json({ error: 'Missing user UID.' });
+  if (!uid) {
+    return res.status(400).json({ error: 'Missing UID in request body.' });
+  }
 
   try {
     const response = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
-        'Authorization': formattedKey,
+        'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
       body: JSON.stringify({
