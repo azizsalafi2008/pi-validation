@@ -36,28 +36,43 @@
           memo: "Register User UID for Payouts",
           metadata: { type: "registration" }
         }, {
-          onReadyForServerApproval: function(paymentId) {
-            console.log("Payment created, waiting 1s to approve:", paymentId);
-            setTimeout(async () => {
-              try {
-                await fetch('/api/approve', {
-                  method: 'POST',
-                  headers: { 'Content-Type': 'application/json' },
-                  body: JSON.stringify({ paymentId: paymentId })
-                });
-              } catch (e) {
-                console.error("Approval error:", e);
+          onReadyForServerApproval: async function(paymentId) {
+            console.log("Approving payment ID:", paymentId);
+            try {
+              const res = await fetch('/api/approve', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paymentId: paymentId })
+              });
+              const data = await res.json();
+              
+              if (!res.ok) {
+                alert("Approval Backend Error (" + res.status + "): " + JSON.stringify(data));
+              } else {
+                console.log("Approved successfully:", data);
               }
-            }, 1000);
+            } catch (err) {
+              alert("Approval Network Error: " + err.message);
+            }
           },
-          onReadyForServerCompletion: function(paymentId, txid) {
-            console.log("Completing payment:", paymentId, txid);
-            fetch('/api/complete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentId: paymentId, txid: txid })
-            });
-            alert("Payment completed! User UID registered.");
+          onReadyForServerCompletion: async function(paymentId, txid) {
+            console.log("Completing payment ID:", paymentId, txid);
+            try {
+              const res = await fetch('/api/complete', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ paymentId: paymentId, txid: txid })
+              });
+              const data = await res.json();
+
+              if (!res.ok) {
+                alert("Completion Backend Error (" + res.status + "): " + JSON.stringify(data));
+              } else {
+                alert("Payment completed! User UID registered.");
+              }
+            } catch (err) {
+              alert("Completion Network Error: " + err.message);
+            }
           },
           onCancel: function(paymentId) { alert("Payment cancelled."); },
           onError: function(error) { alert("Payment error: " + error.message); }
