@@ -1,96 +1,152 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DocHelper App</title>
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-  <style>
-    body { font-family: Arial, sans-serif; text-align: center; padding: 40px 20px; }
-    button { background-color: #673ab7; color: white; border: none; padding: 15px 30px; font-size: 16px; border-radius: 8px; cursor: pointer; }
-    #status { margin-top: 20px; font-weight: bold; word-break: break-all; }
-  </style>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DocHelper App</title>
+    <!-- Pi Network SDK -->
+    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+    <style>
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
+            display: flex;
+            flex-direction: column;
+            align-items: center;
+            justify-content: center;
+            min-height: 100vh;
+            margin: 0;
+            padding: 20px;
+            box-sizing: border-box;
+            text-align: center;
+        }
+        h1 {
+            font-size: 2.5rem;
+            margin-bottom: 10px;
+        }
+        p {
+            font-size: 1.1rem;
+            color: #555;
+            margin-bottom: 30px;
+        }
+        .btn-container {
+            display: flex;
+            flex-direction: column;
+            gap: 15px;
+            width: 100%;
+            max-width: 300px;
+        }
+        button {
+            background-color: #673ab7;
+            color: white;
+            border: none;
+            padding: 15px 25px;
+            font-size: 1rem;
+            font-weight: bold;
+            border-radius: 12px;
+            cursor: pointer;
+            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
+            transition: background-color 0.2s;
+        }
+        button:hover {
+            background-color: #5e35b1;
+        }
+        button.secondary {
+            background-color: #00897b;
+        }
+        button.secondary:hover {
+            background-color: #00796b;
+        }
+    </style>
 </head>
 <body>
-  <h1>DocHelper App</h1>
-  <p>App is running successfully on Pi Testnet!</p>
-  
-  <button id="pay-btn" onclick="makeTestPayment()">Pay 1 Test Pi</button>
-  <div id="status"></div>
 
-  <script>
-    // Initialize Pi SDK immediately
-    window.onload = function() {
-      if (typeof Pi !== 'undefined') {
+    <h1>DocHelper App</h1>
+    <p>App is running successfully on Pi Testnet!</p>
+
+    <div class="btn-container">
+        <!-- User-to-App Payment Button -->
+        <button onclick="pay()">Pay 1 Test Pi</button>
+        
+        <!-- App-to-User Payout Button -->
+        <button class="secondary" onclick="requestPayout()">Receive 0.1 Test Pi</button>
+    </div>
+
+    <script>
+        // Initialize Pi SDK in Testnet mode
         Pi.init({ version: "2.0", sandbox: true });
-      } else {
-        document.getElementById('status').innerText = "Error: Pi SDK failed to load. Open in Pi Browser.";
-      }
-    };
 
-    function makeTestPayment() {
-      const statusDiv = document.getElementById('status');
-      statusDiv.innerText = "Authenticating with Pi Network...";
+        // Authenticate User
+        let currentUser = null;
+        const scopes = ['username', 'payments'];
+        
+        function onIncompletePaymentFound(payment) {
+            console.log("Incomplete payment found", payment);
+        }
 
-      function onIncompletePaymentFound(payment) {
-        statusDiv.innerText = "Found stuck payment: " + payment.identifier + ". Resolving...";
-        fetch('/api/approve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: payment.identifier })
-        });
-      }
+        Pi.authenticate(scopes, onIncompletePaymentFound)
+            .then(function(auth) {
+                currentUser = auth.user;
+                console.log("Authenticated as:", currentUser.username);
+            })
+            .catch(function(error) {
+                console.error("Auth error:", error);
+            });
 
-      Pi.authenticate(['payments'], onIncompletePaymentFound).then(function(auth) {
-        statusDiv.innerText = "Authenticated as @" + auth.user.username + "! Preparing payment...";
+        // User-to-App Payment Handler
+        function pay() {
+            const paymentData = {
+                amount: 1,
+                memo: "DocHelper Testnet Payment",
+                metadata: { type: "U2A" }
+            };
 
-        Pi.createPayment({
-          amount: 1,
-          memo: "Testnet Payment - DocHelper",
-          metadata: { orderId: "order-" + Date.now() }
-        }, {
-          onReadyForServerApproval: function(paymentId) {
-            statusDiv.innerText = "Approving payment on server...";
-            fetch('/api/approve', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentId })
+            const callbacks = {
+                onReadyForServerApproval: function(paymentId) {
+                    fetch('/api/approve', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId })
+                    });
+                },
+                onReadyForServerCompletion: function(paymentId, txid) {
+                    fetch('/api/complete', {
+                        method: 'POST',
+                        headers: { 'Content-Type': 'application/json' },
+                        body: JSON.stringify({ paymentId, txid })
+                    });
+                },
+                onCancel: function(paymentId) { console.log("Cancelled", paymentId); },
+                onError: function(error, payment) { console.error("Error", error); }
+            };
+
+            Pi.createPayment(paymentData, callbacks);
+        }
+
+        // App-to-User Payout Handler
+        function requestPayout() {
+            if (!currentUser) {
+                alert("Please wait for authentication to complete.");
+                return;
+            }
+
+            fetch('/api/payout', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({
+                    uid: currentUser.uid,
+                    amount: 0.1
+                })
             })
             .then(res => res.json())
             .then(data => {
-              statusDiv.innerText = "Approved! Please confirm payment in your Pi Wallet prompt.";
+                if (data.error) {
+                    alert('Payout failed: ' + data.error);
+                } else {
+                    alert('Payout successful!');
+                }
             })
-            .catch(err => {
-              statusDiv.innerText = "Server Approval Error: " + err.message;
-            });
-          },
-          onReadyForServerCompletion: function(paymentId, txid) {
-            statusDiv.innerText = "Completing transaction...";
-            fetch('/api/complete', {
-              method: 'POST',
-              headers: { 'Content-Type': 'application/json' },
-              body: JSON.stringify({ paymentId, txid })
-            })
-            .then(res => res.json())
-            .then(data => {
-              statusDiv.innerText = "Transaction Complete! TXID: " + txid;
-              alert("Payment Successful!");
-            })
-            .catch(err => {
-              statusDiv.innerText = "Completion Error: " + err.message;
-            });
-          },
-          onCancel: function(paymentId) {
-            statusDiv.innerText = "Payment cancelled by user.";
-          },
-          onError: function(error, payment) {
-            statusDiv.innerText = "Payment Error: " + (error.message || JSON.stringify(error));
-          }
-        });
-      }).catch(function(error) {
-        statusDiv.innerText = "Auth Failed: " + (error.message || JSON.stringify(error));
-      });
-    }
-  </script>
+            .catch(err => alert('Payout error: ' + err));
+        }
+    </script>
 </body>
 </html>
