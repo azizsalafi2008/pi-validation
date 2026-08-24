@@ -1,21 +1,18 @@
 export default async function handler(req, res) {
-  // Return a clear error if hit via GET request in browser
-  if (req.method !== 'POST') {
-    return res.status(405).json({ error: 'Method Not Allowed. Send a POST request from the Pi SDK.' });
-  }
+  if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
+
+  // Paste your Server API Key inside the quotes below (keep the Key prefix if present)
+  const secretKey = "PASTE_YOUR_SERVER_API_KEY_HERE".trim();
+  const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
+  const { paymentId } = req.body;
+
+  if (!paymentId) return res.status(400).json({ error: 'Missing paymentId' });
 
   try {
-    const body = req.body ? (typeof req.body === 'string' ? JSON.parse(req.body) : req.body) : {};
-    const paymentId = body.paymentId;
-
-    if (!paymentId) {
-      return res.status(400).json({ error: 'Missing paymentId in request body' });
-    }
-
     const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
       method: 'POST',
       headers: {
-        'Authorization': `Key ${process.env.PI_API_KEY}`,
+        'Authorization': authHeader,
         'Content-Type': 'application/json'
       }
     });
