@@ -1,54 +1,35 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>DocHelper App</title>
-    <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-    <style>
-        body { font-family: sans-serif; text-align: center; padding: 50px; }
-        button { background-color: #006644; color: white; padding: 15px 25px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
-    </style>
-</head>
-<body>
+<script>
+async function requestPayout() {
+  try {
+    // 1. Authenticate user to get their actual Pi UID
+    const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+    const userUid = auth.user.uid;
 
-    <h1>DocHelper App</h1>
-    <p>App is running successfully on Pi Testnet!</p>
+    if (!userUid) {
+      alert('Failed to fetch Pi User UID.');
+      return;
+    }
 
-    <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
+    // 2. Call payout endpoint with authenticated UID
+    const response = await fetch('/api/payout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: userUid, amount: 0.1 })
+    });
 
-    <script>
-        // Initialize Pi SDK for Testnet
-        Pi.init({ version: "2.0", sandbox: true });
+    const data = await response.json();
 
-        function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found:", payment);
-        }
+    if (!response.ok) {
+      alert('Payout failed: ' + (data.error || JSON.stringify(data)));
+    } else {
+      alert('Payout initiated successfully! Payment ID: ' + (data.identifier || data.payment?.identifier));
+    }
+  } catch (err) {
+    alert('Authentication error: ' + err.message);
+  }
+}
 
-        async function requestPayout() {
-            try {
-                // Get the logged-in user's UID
-                const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
-                const userUid = auth.user.uid;
-
-                // Call backend API
-                const response = await fetch('/api/payout', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ uid: userUid, amount: 0.1 })
-                });
-
-                const data = await response.json();
-
-                if (!response.ok) {
-                    alert('Payout failed: ' + (data.error || 'Server error'));
-                } else {
-                    alert('Payout successful! Payment ID: ' + (data.identifier || 'Success'));
-                }
-            } catch (err) {
-                alert('Authentication error: ' + err.message);
-            }
-        }
-    </script>
-</body>
-</html>
+function onIncompletePaymentFound(payment) {
+  console.log('Incomplete payment found:', payment);
+}
+</script>
