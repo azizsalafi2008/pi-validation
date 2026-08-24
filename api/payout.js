@@ -1,10 +1,11 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Paste your actual Testnet App Secret Key here between quotes
-  const apiKey = "361138f95a13b12601fd35b5d8806f5841d81a685bfa210eb03d804ec0687b3ab8b9fe782a4082510c5e68060bcce737759bb621e6027870b29081b20168434b";
+  // Replace with your raw App Secret Key from developer.pi (without typing "Key " in front of it)
+  const rawKey = "361138f95a13b12601fd35b5d8806f5841d81a685bfa210eb03d804ec0687b3ab8b9fe782a4082510c5e68060bcce737759bb621e6027870b29081b20168434b".trim();
 
-  const formattedKey = apiKey.startsWith('Key ') ? apiKey : `Key ${apiKey}`;
+  // Formats correctly for Pi Network API
+  const formattedKey = rawKey.startsWith('Key ') ? rawKey : `Key ${rawKey}`;
   const { uid, amount } = req.body;
 
   if (!uid) return res.status(400).json({ error: 'Missing user UID.' });
