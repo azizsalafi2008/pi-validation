@@ -6,8 +6,9 @@
   <title>DocHelper App</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 50px 20px; background: #f8f9fa; }
-    button { background: #006644; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; }
+    body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #f8f9fa; }
+    .btn { background: #006644; color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; }
+    .btn-secondary { background: #4a5568; }
   </style>
 </head>
 <body>
@@ -15,7 +16,13 @@
   <h1>DocHelper App</h1>
   <p>Pi Testnet Verification</p>
 
-  <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
+  <!-- Step A: Register UID via payment -->
+  <button class="btn btn-secondary" onclick="makeUserPayment()">1. Pay 0.1 Pi (Registers User)</button>
+
+  <br>
+
+  <!-- Step B: Receive Payout -->
+  <button class="btn" onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
 
   <script>
     Pi.init({ version: "2.0", sandbox: true });
@@ -24,6 +31,31 @@
       console.log("Incomplete payment found:", payment);
     }
 
+    // Step 1: User-to-App payment to register UID
+    async function makeUserPayment() {
+      try {
+        const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+        
+        Pi.createPayment({
+          amount: 0.1,
+          memo: "Register User UID for Payouts",
+          metadata: { type: "registration" }
+        }, {
+          onReadyForServerApproval: function(paymentId) {
+            console.log("Approved:", paymentId);
+          },
+          onReadyForServerCompletion: function(paymentId, txid) {
+            alert("Payment completed! Your user UID is now registered.");
+          },
+          onCancel: function(paymentId) { alert("Payment cancelled."); },
+          onError: function(error) { alert("Payment error: " + error.message); }
+        });
+      } catch (err) {
+        alert("Auth error: " + err.message);
+      }
+    }
+
+    // Step 2: App-to-User payout
     async function requestPayout() {
       try {
         const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
