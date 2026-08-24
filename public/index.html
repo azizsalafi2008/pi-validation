@@ -4,6 +4,7 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DocHelper App</title>
+  <!-- Pi Network SDK -->
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
     body {
@@ -12,24 +13,22 @@
       flex-direction: column;
       align-items: center;
       justify-content: center;
-      min-height: 100vh;
+      height: 100vh;
       margin: 0;
       background-color: #f9f9f9;
-      text-align: center;
     }
-    h1 { margin-bottom: 8px; }
-    p { color: #555; margin-bottom: 24px; }
+    h1 { margin-bottom: 10px; }
+    p { color: #555; margin-bottom: 20px; }
     button {
-      background-color: #006644;
-      color: white;
-      border: none;
-      padding: 14px 28px;
+      padding: 12px 24px;
       font-size: 16px;
-      border-radius: 8px;
+      color: white;
+      background-color: #006644;
+      border: none;
+      border-radius: 6px;
       cursor: pointer;
-      font-weight: bold;
     }
-    button:active { background-color: #004d33; }
+    button:hover { background-color: #004d33; }
   </style>
 </head>
 <body>
@@ -40,23 +39,25 @@
   <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
 
   <script>
-    // Initialize Pi SDK for Testnet
+    // Initialize Pi SDK
     Pi.init({ version: "2.0", sandbox: true });
 
     async function requestPayout() {
       try {
+        // Authenticate user to capture verified Pi UID
         const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
-        const username = auth.user.username;
+        const userUid = auth.user.uid;
 
-        if (!username) {
-          alert('Failed to fetch Pi Username.');
+        if (!userUid) {
+          alert('Could not retrieve valid Pi UID.');
           return;
         }
 
+        // Send authenticated UID to backend
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ username: username, amount: 0.1 })
+          body: JSON.stringify({ uid: userUid, amount: 0.1 })
         });
 
         const data = await response.json();
@@ -64,7 +65,7 @@
         if (!response.ok) {
           alert('Payout failed: ' + (data.error || JSON.stringify(data)));
         } else {
-          alert('Payout successful! Payment ID: ' + (data.identifier || data.payment?.identifier));
+          alert('Success! Payment ID: ' + (data.identifier || data.payment?.identifier));
         }
       } catch (err) {
         alert('Authentication error: ' + err.message);
@@ -75,5 +76,6 @@
       console.log('Incomplete payment found:', payment);
     }
   </script>
+
 </body>
 </html>
