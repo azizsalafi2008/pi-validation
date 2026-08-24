@@ -1,76 +1,32 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DocHelper App</title>
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-  <style>
-    body {
-      font-family: Arial, sans-serif;
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      height: 100vh;
-      margin: 0;
-      background-color: #f9f9f9;
+<script>
+async function requestPayout() {
+  try {
+    const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+    
+    if (!auth || !auth.user || !auth.user.uid) {
+      alert('Authentication failed: Could not retrieve Pi User UID.');
+      return;
     }
-    h1 { margin-bottom: 10px; }
-    p { color: #555; margin-bottom: 20px; }
-    button {
-      padding: 12px 24px;
-      font-size: 16px;
-      color: white;
-      background-color: #006644;
-      border: none;
-      border-radius: 6px;
-      cursor: pointer;
+
+    const response = await fetch('/api/payout', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ uid: auth.user.uid, amount: 0.1 })
+    });
+
+    const data = await response.json();
+
+    if (!response.ok) {
+      alert('Payout error: ' + JSON.stringify(data));
+    } else {
+      alert('Success! Payment created. ID: ' + (data.identifier || data.payment?.identifier));
     }
-    button:hover { background-color: #004d33; }
-  </style>
-</head>
-<body>
+  } catch (err) {
+    alert('SDK Error: ' + err.message);
+  }
+}
 
-  <h1>DocHelper App</h1>
-  <p>App is running successfully on Pi Testnet!</p>
-
-  <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
-
-  <script>
-    Pi.init({ version: "2.0", sandbox: true });
-
-    async function requestPayout() {
-      try {
-        const auth = await Pi.authenticate(['username', 'payments'], function onIncompletePaymentFound(payment) {
-          console.log('Incomplete payment:', payment);
-        });
-
-        const userUid = auth.user.uid;
-
-        if (!userUid) {
-          alert('Authentication failed: Could not retrieve Pi UID.');
-          return;
-        }
-
-        const response = await fetch('/api/payout', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: userUid, amount: 0.1 })
-        });
-
-        const data = await response.json();
-
-        if (!response.ok) {
-          alert('Payout error: ' + JSON.stringify(data));
-        } else {
-          alert('Success! Payment Created: ' + (data.identifier || data.payment?.identifier));
-        }
-      } catch (err) {
-        alert('Auth error: ' + err.message);
-      }
-    }
-  </script>
-
-</body>
-</html>
+function onIncompletePaymentFound(payment) {
+  console.log('Incomplete payment:', payment);
+}
+</script>
