@@ -44,20 +44,21 @@
 
     async function requestPayout() {
       try {
-        // Authenticate user to capture verified Pi UID
+        // Authenticate user to capture Pi user details
         const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
         const userUid = auth.user.uid;
+        const userName = auth.user.username;
 
         if (!userUid) {
-          alert('Could not retrieve valid Pi UID.');
+          alert('Could not retrieve Pi user details.');
           return;
         }
 
-        // Send authenticated UID to backend
+        // Send authenticated credentials to backend
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: userUid, amount: 0.1 })
+          body: JSON.stringify({ uid: userUid, username: userName, amount: 0.1 })
         });
 
         const data = await response.json();
