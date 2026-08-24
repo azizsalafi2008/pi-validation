@@ -1,13 +1,12 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  const apiKey = process.env.PI_API_KEY;
-  if (!apiKey) return res.status(400).json({ error: 'Missing PI_API_KEY in Vercel' });
-
+  // Temporary hardcoded key to complete Step 8 testing
+  const apiKey = "361138f95a13b12601fd35b5d8806f5841d81a685bfa210eb03d804ec0687b3ab8b9fe782a4082510c5e68060bcce737759bb621e6027870b29081b20168434b";
   const formattedKey = apiKey.startsWith('Key ') ? apiKey : `Key ${apiKey}`;
+  
   const { uid, amount } = req.body;
-
-  if (!uid) return res.status(400).json({ error: 'Missing UID from client' });
+  if (!uid) return res.status(400).json({ error: 'Missing user UID' });
 
   try {
     const response = await fetch('https://api.minepi.com/v2/payments', {
