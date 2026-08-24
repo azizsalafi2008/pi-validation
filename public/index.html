@@ -4,58 +4,10 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>DocHelper App</title>
-    <!-- Pi Network SDK -->
     <script src="https://sdk.minepi.com/pi-sdk.js"></script>
     <style>
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
-            display: flex;
-            flex-direction: column;
-            align-items: center;
-            justify-content: center;
-            min-height: 100vh;
-            margin: 0;
-            padding: 20px;
-            box-sizing: border-box;
-            text-align: center;
-        }
-        h1 {
-            font-size: 2.5rem;
-            margin-bottom: 10px;
-        }
-        p {
-            font-size: 1.1rem;
-            color: #555;
-            margin-bottom: 30px;
-        }
-        .btn-container {
-            display: flex;
-            flex-direction: column;
-            gap: 15px;
-            width: 100%;
-            max-width: 300px;
-        }
-        button {
-            background-color: #673ab7;
-            color: white;
-            border: none;
-            padding: 15px 25px;
-            font-size: 1rem;
-            font-weight: bold;
-            border-radius: 12px;
-            cursor: pointer;
-            box-shadow: 0 4px 6px rgba(0,0,0,0.1);
-            transition: background-color 0.2s;
-        }
-        button:hover {
-            background-color: #5e35b1;
-        }
-        button.secondary {
-            background-color: #00897b;
-        }
-        button.secondary:hover {
-            background-color: #00796b;
-        }
+        body { font-family: sans-serif; text-align: center; padding: 50px; }
+        button { background-color: #006644; color: white; padding: 15px 25px; border: none; border-radius: 8px; font-size: 16px; cursor: pointer; }
     </style>
 </head>
 <body>
@@ -63,89 +15,39 @@
     <h1>DocHelper App</h1>
     <p>App is running successfully on Pi Testnet!</p>
 
-    <div class="btn-container">
-        <!-- User-to-App Payment Button -->
-        <button onclick="pay()">Pay 1 Test Pi</button>
-        
-        <!-- App-to-User Payout Button -->
-        <button class="secondary" onclick="requestPayout()">Receive 0.1 Test Pi</button>
-    </div>
+    <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
 
     <script>
-        // Initialize Pi SDK in Testnet mode
+        // Initialize Pi SDK for Testnet
         Pi.init({ version: "2.0", sandbox: true });
 
-        // Authenticate User
-        let currentUser = null;
-        const scopes = ['username', 'payments'];
-        
         function onIncompletePaymentFound(payment) {
-            console.log("Incomplete payment found", payment);
+            console.log("Incomplete payment found:", payment);
         }
 
-        Pi.authenticate(scopes, onIncompletePaymentFound)
-            .then(function(auth) {
-                currentUser = auth.user;
-                console.log("Authenticated as:", currentUser.username);
-            })
-            .catch(function(error) {
-                console.error("Auth error:", error);
-            });
+        async function requestPayout() {
+            try {
+                // Get the logged-in user's UID
+                const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+                const userUid = auth.user.uid;
 
-        // User-to-App Payment Handler
-        function pay() {
-            const paymentData = {
-                amount: 1,
-                memo: "DocHelper Testnet Payment",
-                metadata: { type: "U2A" }
-            };
+                // Call backend API
+                const response = await fetch('/api/payout', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ uid: userUid, amount: 0.1 })
+                });
 
-            const callbacks = {
-                onReadyForServerApproval: function(paymentId) {
-                    fetch('/api/approve', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId })
-                    });
-                },
-                onReadyForServerCompletion: function(paymentId, txid) {
-                    fetch('/api/complete', {
-                        method: 'POST',
-                        headers: { 'Content-Type': 'application/json' },
-                        body: JSON.stringify({ paymentId, txid })
-                    });
-                },
-                onCancel: function(paymentId) { console.log("Cancelled", paymentId); },
-                onError: function(error, payment) { console.error("Error", error); }
-            };
+                const data = await response.json();
 
-            Pi.createPayment(paymentData, callbacks);
-        }
-
-        // App-to-User Payout Handler
-        function requestPayout() {
-            if (!currentUser) {
-                alert("Please wait for authentication to complete.");
-                return;
-            }
-
-            fetch('/api/payout', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({
-                    uid: currentUser.uid,
-                    amount: 0.1
-                })
-            })
-            .then(res => res.json())
-            .then(data => {
-                if (data.error) {
-                    alert('Payout failed: ' + data.error);
+                if (!response.ok) {
+                    alert('Payout failed: ' + (data.error || 'Server error'));
                 } else {
-                    alert('Payout successful!');
+                    alert('Payout successful! Payment ID: ' + (data.identifier || 'Success'));
                 }
-            })
-            .catch(err => alert('Payout error: ' + err));
+            } catch (err) {
+                alert('Authentication error: ' + err.message);
+            }
         }
     </script>
 </body>
