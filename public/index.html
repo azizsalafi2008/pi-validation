@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DocHelper App</title>
-  <!-- Pi Network SDK -->
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
     body {
@@ -14,15 +13,8 @@
       background-color: #f8f9fa;
       color: #333;
     }
-    h1 {
-      font-size: 32px;
-      margin-bottom: 10px;
-    }
-    p {
-      font-size: 18px;
-      color: #666;
-      margin-bottom: 30px;
-    }
+    h1 { font-size: 32px; margin-bottom: 10px; }
+    p { font-size: 18px; color: #666; margin-bottom: 30px; }
     button {
       background-color: #006644;
       color: white;
@@ -33,9 +25,7 @@
       border-radius: 8px;
       cursor: pointer;
     }
-    button:active {
-      background-color: #004d33;
-    }
+    button:active { background-color: #004d33; }
   </style>
 </head>
 <body>
@@ -55,15 +45,15 @@
 
     async function requestPayout() {
       try {
-        // Authenticate with explicit payments scope
+        // Authenticate user with scopes required for App-to-User payouts
         const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
         
         if (!auth || !auth.user || !auth.user.uid) {
-          alert("Could not retrieve user UID.");
+          alert("Could not retrieve user authentication details.");
           return;
         }
 
-        // Send payment request to serverless backend
+        // Send authenticated UID to payout endpoint
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -73,7 +63,7 @@
         const data = await response.json();
 
         if (!response.ok) {
-          alert("Payout error: " + (data.error || JSON.stringify(data)));
+          alert("Payout error: " + (data.error || data.message || JSON.stringify(data)));
         } else {
           alert("Success! Payout created. Payment ID: " + (data.identifier || data.payment?.identifier));
         }
