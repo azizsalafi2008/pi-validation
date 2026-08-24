@@ -1,35 +1,79 @@
-<script>
-async function requestPayout() {
-  try {
-    // Authenticate with Pi SDK and get username
-    const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
-    const username = auth.user.username;
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>DocHelper App</title>
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f9f9f9;
+      text-align: center;
+    }
+    h1 { margin-bottom: 8px; }
+    p { color: #555; margin-bottom: 24px; }
+    button {
+      background-color: #006644;
+      color: white;
+      border: none;
+      padding: 14px 28px;
+      font-size: 16px;
+      border-radius: 8px;
+      cursor: pointer;
+      font-weight: bold;
+    }
+    button:active { background-color: #004d33; }
+  </style>
+</head>
+<body>
 
-    if (!username) {
-      alert('Failed to fetch Pi Username.');
-      return;
+  <h1>DocHelper App</h1>
+  <p>App is running successfully on Pi Testnet!</p>
+
+  <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
+
+  <script>
+    // Initialize Pi SDK for Testnet
+    Pi.init({ version: "2.0", sandbox: true });
+
+    async function requestPayout() {
+      try {
+        const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+        const username = auth.user.username;
+
+        if (!username) {
+          alert('Failed to fetch Pi Username.');
+          return;
+        }
+
+        const response = await fetch('/api/payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ username: username, amount: 0.1 })
+        });
+
+        const data = await response.json();
+
+        if (!response.ok) {
+          alert('Payout failed: ' + (data.error || JSON.stringify(data)));
+        } else {
+          alert('Payout successful! Payment ID: ' + (data.identifier || data.payment?.identifier));
+        }
+      } catch (err) {
+        alert('Authentication error: ' + err.message);
+      }
     }
 
-    // Send username to the backend payout API
-    const response = await fetch('/api/payout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ username: username, amount: 0.1 })
-    });
-
-    const data = await response.json();
-
-    if (!response.ok) {
-      alert('Payout failed: ' + (data.error || JSON.stringify(data)));
-    } else {
-      alert('Payout successful! Payment ID: ' + (data.identifier || data.payment?.identifier));
+    function onIncompletePaymentFound(payment) {
+      console.log('Incomplete payment found:', payment);
     }
-  } catch (err) {
-    alert('Authentication error: ' + err.message);
-  }
-}
-
-function onIncompletePaymentFound(payment) {
-  console.log('Incomplete payment found:', payment);
-}
-</script>
+  </script>
+</body>
+</html>
