@@ -1,14 +1,17 @@
 export default async function handler(req, res) {
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Paste your actual API Secret Key between the quotes below
-  const secretKey = "Px0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  // Paste ONLY your key inside the quotes below
+  const secretKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  
+  if (!secretKey || secretKey === "YOUR_KEY_HERE") {
+    return res.status(400).json({ error: 'Please paste your real API key on line 5.' });
+  }
+
   const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
   const { uid, amount } = req.body;
 
-  if (!uid) {
-    return res.status(400).json({ error: 'Missing UID in request body.' });
-  }
+  if (!uid) return res.status(400).json({ error: 'Missing UID from client.' });
 
   try {
     const response = await fetch('https://api.minepi.com/v2/payments', {
