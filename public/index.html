@@ -4,7 +4,6 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DocHelper App</title>
-  <!-- Pi Network SDK -->
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
     body {
@@ -39,42 +38,37 @@
   <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
 
   <script>
-    // Initialize Pi SDK
     Pi.init({ version: "2.0", sandbox: true });
 
     async function requestPayout() {
       try {
-        // Authenticate user to capture Pi user details
-        const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
+        const auth = await Pi.authenticate(['username', 'payments'], function onIncompletePaymentFound(payment) {
+          console.log('Incomplete payment:', payment);
+        });
+
         const userUid = auth.user.uid;
-        const userName = auth.user.username;
 
         if (!userUid) {
-          alert('Could not retrieve Pi user details.');
+          alert('Authentication failed: Could not retrieve Pi UID.');
           return;
         }
 
-        // Send authenticated credentials to backend
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: userUid, username: userName, amount: 0.1 })
+          body: JSON.stringify({ uid: userUid, amount: 0.1 })
         });
 
         const data = await response.json();
 
         if (!response.ok) {
-          alert('Payout failed: ' + (data.error || JSON.stringify(data)));
+          alert('Payout error: ' + JSON.stringify(data));
         } else {
-          alert('Success! Payment ID: ' + (data.identifier || data.payment?.identifier));
+          alert('Success! Payment Created: ' + (data.identifier || data.payment?.identifier));
         }
       } catch (err) {
-        alert('Authentication error: ' + err.message);
+        alert('Auth error: ' + err.message);
       }
-    }
-
-    function onIncompletePaymentFound(payment) {
-      console.log('Incomplete payment found:', payment);
     }
   </script>
 
