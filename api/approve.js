@@ -10,7 +10,7 @@ export default async function handler(req, res) {
   }
 
   // Ensure key format matches 'Key <your_secret_key>'
-  const secretKey = "PASTE_YOUR_SERVER_API_KEY_HERE".trim();
+  const secretKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
 
   try {
