@@ -6,26 +6,8 @@
   <title>DocHelper App</title>
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
-    body {
-      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
-      text-align: center;
-      padding: 50px 20px;
-      background-color: #f8f9fa;
-      color: #333;
-    }
-    h1 { font-size: 32px; margin-bottom: 10px; }
-    p { font-size: 18px; color: #666; margin-bottom: 30px; }
-    button {
-      background-color: #006644;
-      color: white;
-      border: none;
-      padding: 15px 30px;
-      font-size: 18px;
-      font-weight: bold;
-      border-radius: 8px;
-      cursor: pointer;
-    }
-    button:active { background-color: #004d33; }
+    body { font-family: sans-serif; text-align: center; padding: 50px 20px; background: #f8f9fa; }
+    button { background: #006644; color: white; border: none; padding: 15px 30px; font-size: 18px; font-weight: bold; border-radius: 8px; cursor: pointer; }
   </style>
 </head>
 <body>
@@ -36,7 +18,6 @@
   <button onclick="requestPayout()">Receive 0.1 Test Pi</button>
 
   <script>
-    // Initialize Pi SDK for Testnet Sandbox
     Pi.init({ version: "2.0", sandbox: true });
 
     function onIncompletePaymentFound(payment) {
@@ -45,7 +26,6 @@
 
     async function requestPayout() {
       try {
-        // Authenticate user with scopes required for App-to-User payouts
         const auth = await Pi.authenticate(['username', 'payments'], onIncompletePaymentFound);
         
         if (!auth || !auth.user || !auth.user.uid) {
@@ -53,7 +33,6 @@
           return;
         }
 
-        // Send authenticated UID to payout endpoint
         const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
@@ -65,7 +44,7 @@
         if (!response.ok) {
           alert("Payout error: " + (data.error || data.message || JSON.stringify(data)));
         } else {
-          alert("Success! Payout created. Payment ID: " + (data.identifier || data.payment?.identifier));
+          alert("Success! Payout ID: " + (data.identifier || data.payment?.identifier));
         }
       } catch (err) {
         alert("SDK Error: " + err.message);
