@@ -1,9 +1,15 @@
 export default async function handler(req, res) {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
+
+  if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Make sure your real Server API Key is inside the quotes below
-  const secretKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
-  const authHeader = secretKey.startsWith('Key ') ? secretKey : `Key ${secretKey}`;
+  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  const secretKey = rawKey.replace(/^Key\s+/i, '');
+  const authHeader = `Key ${secretKey}`;
+
   const { paymentId, txid } = req.body;
 
   if (!paymentId || !txid) return res.status(400).json({ error: 'Missing paymentId or txid' });
@@ -19,12 +25,7 @@ export default async function handler(req, res) {
     });
 
     const data = await response.json();
-
-    if (!response.ok) {
-      return res.status(response.status).json({ error: data.message || 'Completion failed', details: data });
-    }
-
-    return res.status(200).json(data);
+    return res.status(response.status).json(data);
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
