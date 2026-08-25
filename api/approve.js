@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // Always allow CORS for Pi Browser
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type');
@@ -13,22 +12,33 @@ export default async function handler(req, res) {
 
   if (!paymentId) return res.status(400).json({ error: 'Missing paymentId' });
 
-  try {
-    const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json'
+  // Retry up to 3 times with a delay if Pi's testnet nodes lag
+  for (let attempt = 1; attempt <= 3; attempt++) {
+    try {
+      const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+
+      if (response.ok) {
+        return res.status(200).json(data);
       }
-    });
 
-    const data = await response.json();
-    console.log("Pi Approve Response:", data);
+      // If payment is not ready on Pi's server yet, wait 1.5 seconds and retry
+      if (response.status === 404 && attempt < 3) {
+        await new Promise(resolve => setTimeout(resolve, 1500));
+        continue;
+      }
 
-    // Return the exact status code from Pi Network
-    return res.status(response.status).json(data);
-  } catch (error) {
-    console.error("Approve endpoint error:", error);
-    return res.status(500).json({ error: error.message });
+      return res.status(response.status).json(data);
+    } catch (error) {
+      if (attempt === 3) return res.status(500).json({ error: error.message });
+      await new Promise(resolve => setTimeout(resolve, 1500));
+    }
   }
 }
