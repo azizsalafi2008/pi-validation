@@ -21,7 +21,7 @@
   <button class="btn" onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
 
   <script>
-    Pi.init({ version: "2.0", sandbox: true });
+    Pi.init({ version: "2.0", sandbox: false });
 
     function onIncompletePaymentFound(payment) {
       console.log("Incomplete payment found:", payment);
