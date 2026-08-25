@@ -6,7 +6,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // 1. Paste your Server API Key below
+  // Paste your actual Server API Key below
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   if (!uid) return res.status(400).json({ error: 'Missing user UID' });
 
   try {
-    // Step A: Create App-to-User payment
+    // 1. Create the payment
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -33,13 +33,11 @@ export default async function handler(req, res) {
     });
 
     const createData = await createRes.json();
-    if (!createRes.ok) {
-      return res.status(createRes.status).json(createData);
-    }
+    if (!createRes.ok) return res.status(createRes.status).json(createData);
 
     const paymentId = createData.identifier || createData.payment?.identifier;
 
-    // Step B: Submit payment to Pi blockchain
+    // 2. Submit to blockchain
     const submitRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/submit`, {
       method: 'POST',
       headers: {
@@ -51,7 +49,7 @@ export default async function handler(req, res) {
     const submitData = await submitRes.json();
     const txid = submitData.txid || submitData.payment?.transaction?.txid;
 
-    // Step C: Complete payment
+    // 3. Complete the payment
     if (txid) {
       await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
         method: 'POST',
