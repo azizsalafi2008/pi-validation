@@ -6,17 +6,17 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
   if (req.method !== 'POST') return res.status(405).json({ error: 'Method not allowed' });
 
-  // Make sure your Server API Key is pasted here
+  // 1. Paste your Server API Key below
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
   const { uid, amount } = req.body;
-
   if (!uid) return res.status(400).json({ error: 'Missing user UID' });
 
   try {
-    const response = await fetch('https://api.minepi.com/v2/payments', {
+    // Step A: Create App-to-User payment
+    const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -26,14 +26,49 @@ export default async function handler(req, res) {
         payment: {
           amount: parseFloat(amount) || 0.1,
           memo: "DocHelper Testnet Payout",
-          metadata: { type: "testnet_payout" },
+          metadata: { type: "testnet_payout", timestamp: Date.now() },
           uid: uid
         }
       })
     });
 
-    const data = await response.json();
-    return res.status(response.status).json(data);
+    const createData = await createRes.json();
+    if (!createRes.ok) {
+      return res.status(createRes.status).json(createData);
+    }
+
+    const paymentId = createData.identifier || createData.payment?.identifier;
+
+    // Step B: Submit payment to Pi blockchain
+    const submitRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/submit`, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      }
+    });
+
+    const submitData = await submitRes.json();
+    const txid = submitData.txid || submitData.payment?.transaction?.txid;
+
+    // Step C: Complete payment
+    if (txid) {
+      await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        },
+        body: JSON.stringify({ txid: txid })
+      });
+    }
+
+    return res.status(200).json({
+      success: true,
+      paymentId: paymentId,
+      txid: txid || "submitted"
+    });
+
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
