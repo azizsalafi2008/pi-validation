@@ -15,7 +15,6 @@ export default async function handler(req, res) {
   const authHeader = `Key ${apiKey}`;
 
   try {
-    // Standard Pi App-to-User payload format
     const payload = {
       payment: {
         amount: Number(amount || 0.1),
@@ -57,7 +56,7 @@ export default async function handler(req, res) {
     const submitData = await submitRes.json();
     const txid = submitData.transaction?.txid || submitData.txid || "submitted";
 
-    // Complete transaction
+    // Complete payment
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
