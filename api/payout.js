@@ -16,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // 1. Create the App-to-User Payment
+    // 1. Attempt to create the App-to-User Payment
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -34,15 +34,20 @@ export default async function handler(req, res) {
     });
 
     const createData = await createRes.json();
-    if (!createRes.ok) {
+    let paymentId = null;
+
+    if (createRes.ok) {
+      paymentId = createData.identifier || createData.id;
+    } else if (createData.error === 'ongoing_payment_found' && createData.payment) {
+      // Automatically resolve and complete the stuck payment
+      paymentId = createData.payment.identifier;
+    } else {
       return res.status(createRes.status).json({
-        error: `Payment creation failed: ${createData.message || JSON.stringify(createData)}`
+        error: `Payment creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
       });
     }
 
-    const paymentId = createData.identifier || createData.id;
-
-    // 2. Complete the Payout
+    // 2. Complete the payout
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
