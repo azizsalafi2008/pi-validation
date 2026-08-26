@@ -5,11 +5,15 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  const { paymentId, txid } = req.body || {};
-  if (!paymentId) return res.status(400).json({ error: "Missing paymentId" });
+  // Testnet Server API Key
+  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  const secretKey = rawKey.replace(/^Key\s+/i, '');
+  const authHeader = `Key ${secretKey}`;
 
-  const rawKey = process.env.PI_API_KEY || "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er";
-  const authHeader = `Key ${rawKey.replace(/^Key\s+/i, '').trim()}`;
+  const { paymentId, txid } = req.body || {};
+  if (!paymentId || !txid) {
+    return res.status(400).json({ error: "Missing paymentId or txid" });
+  }
 
   try {
     const response = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
@@ -18,12 +22,12 @@ export default async function handler(req, res) {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ txid: txid || "testnet_txid" })
+      body: JSON.stringify({ txid })
     });
 
     const data = await response.json();
     return res.status(response.status).json(data);
-  } catch (err) {
-    return res.status(500).json({ error: err.message });
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
   }
 }
