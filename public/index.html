@@ -38,12 +38,13 @@
       }
     }
 
-    async function clearOngoingPayment() {
+async function clearOngoingPayment() {
       try {
-        await Pi.authenticate(scopes, onIncompletePaymentFound);
-        alert("Stuck payment cleared! You can now tap button 2.");
+        const res = await fetch('/api/cancel', { method: 'POST' });
+        const data = await res.json();
+        alert("Server cleanup response: " + JSON.stringify(data));
       } catch (err) {
-        alert("Clear status: " + err.message);
+        alert("Clear error: " + err.message);
       }
     }
 
