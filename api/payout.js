@@ -5,18 +5,14 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // 1. YOUR TESTNET SERVER API KEY (Paste raw key without "Key " prefix)
-  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
-  const secretKey = rawKey.replace(/^Key\s+/i, '');
-  const authHeader = `Key ${secretKey}`;
+  const { uid } = req.body || {};
+  if (!uid) return res.status(400).json({ error: "Missing user UID." });
+
+  const rawKey = process.env.PI_API_KEY || "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er";
+  const authHeader = `Key ${rawKey.replace(/^Key\s+/i, '').trim()}`;
 
   try {
-    const { uid } = req.body || {};
-    if (!uid) {
-      return res.status(400).json({ error: "Missing user UID. Please tap '1. Pay 0.1 Pi' first." });
-    }
-
-    // 2. Create the App-to-User Payment
+    // 1. Create App-to-User Payment
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -42,7 +38,7 @@ export default async function handler(req, res) {
 
     const paymentId = createData.identifier || createData.id;
 
-    // 3. Complete the payout
+    // 2. Complete the payout
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
@@ -59,8 +55,7 @@ export default async function handler(req, res) {
       paymentId: paymentId,
       result: completeData
     });
-
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
+  } catch (err) {
+    return res.status(500).json({ error: err.message });
   }
 }
