@@ -15,41 +15,38 @@ export default async function handler(req, res) {
   const authHeader = `Key ${apiKey}`;
 
   try {
-    // 1. Create App-to-User Payment
+    // Standard Pi App-to-User payload format
+    const payload = {
+      payment: {
+        amount: Number(amount || 0.1),
+        memo: memo || "Testnet Payout Reward",
+        metadata: { type: "testnet_verification" },
+        uid: String(uid)
+      }
+    };
+
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({
-        payment: {
-          amount: parseFloat(amount || 0.1),
-          memo: memo || "Testnet Payout Reward",
-          metadata: { type: "testnet_verification" },
-          uid: uid
-        }
-      })
+      body: JSON.stringify(payload)
     });
 
-    const createText = await createRes.text();
-    let paymentData;
-    try {
-      paymentData = JSON.parse(createText);
-    } catch (e) {
-      return res.status(500).json({ error: "Invalid JSON from Pi API", raw: createText });
-    }
+    const createData = await createRes.json();
 
-    if (!createRes.ok || (!paymentData.identifier && !paymentData.id)) {
-      return res.status(createRes.status).json({ 
-        error: "Payment creation failed", 
-        pi_response: paymentData 
+    if (!createRes.ok || (!createData.identifier && !createData.id)) {
+      return res.status(createRes.status).json({
+        error: "Payment creation failed",
+        status: createRes.status,
+        details: createData
       });
     }
 
-    const paymentId = paymentData.identifier || paymentData.id;
+    const paymentId = createData.identifier || createData.id;
 
-    // 2. Submit payment to blockchain
+    // Submit to blockchain
     const submitRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/submit`, {
       method: 'POST',
       headers: {
@@ -60,7 +57,7 @@ export default async function handler(req, res) {
     const submitData = await submitRes.json();
     const txid = submitData.transaction?.txid || submitData.txid || "submitted";
 
-    // 3. Complete payment to finalize
+    // Complete transaction
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
