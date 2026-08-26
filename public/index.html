@@ -7,8 +7,9 @@
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
     body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #f8f9fa; }
-    .btn { background: #006644; color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; }
+    .btn { background: #006644; color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; width: 280px; }
     .btn-secondary { background: #4a5568; }
+    .btn-danger { background: #c53030; }
   </style>
 </head>
 <body>
@@ -18,6 +19,8 @@
 
   <button class="btn btn-secondary" onclick="makeUserPayment()">1. Pay 0.1 Pi (Registers User)</button>
   <br>
+  <button class="btn btn-danger" onclick="clearOngoingPayment()">Clear Stuck Payment</button>
+  <br>
   <button class="btn" onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
 
   <script>
@@ -25,53 +28,42 @@
 
     const scopes = ['username', 'payments', 'wallet_address'];
 
-    function onIncompletePaymentFound(payment) {
-      console.log("Incomplete payment found:", payment);
+    async function onIncompletePaymentFound(payment) {
+      if (payment && payment.identifier) {
+        await fetch('/api/cancel', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ paymentId: payment.identifier })
+        });
+      }
+    }
+
+    async function clearOngoingPayment() {
+      try {
+        await Pi.authenticate(scopes, onIncompletePaymentFound);
+        alert("Stuck payment cleared! You can now tap button 2.");
+      } catch (err) {
+        alert("Clear status: " + err.message);
+      }
     }
 
     async function makeUserPayment() {
       try {
         const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-        
         Pi.createPayment({
           amount: 0.1,
           memo: "Register User UID for Payouts",
           metadata: { type: "registration" }
         }, {
-          onReadyForServerApproval: async function(paymentId) {
-            console.log("Approving payment ID:", paymentId);
-            try {
-              const res = await fetch('/api/approve', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: paymentId })
-              });
-              const data = await res.json();
-              if (!res.ok) {
-                alert("Approval Backend Error (" + res.status + "): " + JSON.stringify(data));
-              }
-            } catch (err) {
-              alert("Approval Network Error: " + err.message);
-            }
+          onReadyForServerApproval: async (id) => {
+            await fetch('/api/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: id }) });
           },
-          onReadyForServerCompletion: async function(paymentId, txid) {
-            console.log("Completing payment ID:", paymentId, txid);
-            try {
-              const res = await fetch('/api/complete', {
-                method: 'POST',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ paymentId: paymentId, txid: txid })
-              });
-              const data = await res.json();
-              if (res.ok) {
-                alert("Payment completed! User UID registered.");
-              }
-            } catch (err) {
-              alert("Completion Network Error: " + err.message);
-            }
+          onReadyForServerCompletion: async (id, txid) => {
+            await fetch('/api/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: id, txid: txid }) });
+            alert("Payment completed!");
           },
-          onCancel: function(paymentId) { alert("Payment cancelled."); },
-          onError: function(error) { alert("Payment error: " + error.message); }
+          onCancel: () => { alert("Cancelled"); },
+          onError: (err) => { alert("Error: " + err.message); }
         });
       } catch (err) {
         alert("Auth error: " + err.message);
@@ -81,27 +73,22 @@
     async function requestPayout() {
       try {
         const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-        
         if (!auth || !auth.user || !auth.user.uid) {
-          alert("Could not retrieve user UID. Please authenticate first.");
+          alert("Could not retrieve user UID.");
           return;
         }
 
-        const response = await fetch('/api/payout', {
+        const res = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ 
-            uid: auth.user.uid, 
-            amount: 0.1 
-          })
+          body: JSON.stringify({ uid: auth.user.uid, amount: 0.1 })
         });
 
-        const data = await response.json();
-
-        if (!response.ok) {
+        const data = await res.json();
+        if (!res.ok) {
           alert("Payout error: " + (data.error || data.message || JSON.stringify(data)));
         } else {
-          alert("Success! Payout ID: " + (data.identifier || data.payment?.identifier || JSON.stringify(data)));
+          alert("Success! Payout ID: " + (data.paymentId || data.identifier || JSON.stringify(data)));
         }
       } catch (err) {
         alert("SDK Error: " + err.message);
