@@ -41,8 +41,8 @@
   // Initialize Pi SDK for Testnet
   Pi.init({ version: "2.0", sandbox: true });
 
-  // Authenticate user on load
-  Pi.authenticate(['payments', 'username'], onIncompletePaymentFound)
+  // Authenticate user with wallet_address scope required for App-to-User payouts
+  Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
     .then(auth => {
       currentUser = auth.user;
       statusBox.innerText = `Connected as: @${currentUser.username}`;
