@@ -11,7 +11,8 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing Pioneer UID" });
   }
 
-  const authHeader = `Key x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er`;
+  const apiKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er";
+  const authHeader = `Key ${apiKey}`;
 
   try {
     // 1. Create App-to-User Payment
@@ -31,12 +32,22 @@ export default async function handler(req, res) {
       })
     });
 
-    const paymentData = await createRes.json();
-    const paymentId = paymentData.identifier || paymentData.id;
-
-    if (!paymentId) {
-      return res.status(400).json({ error: "Payment creation failed", details: paymentData });
+    const createText = await createRes.text();
+    let paymentData;
+    try {
+      paymentData = JSON.parse(createText);
+    } catch (e) {
+      return res.status(500).json({ error: "Invalid JSON from Pi API", raw: createText });
     }
+
+    if (!createRes.ok || (!paymentData.identifier && !paymentData.id)) {
+      return res.status(createRes.status).json({ 
+        error: "Payment creation failed", 
+        pi_response: paymentData 
+      });
+    }
+
+    const paymentId = paymentData.identifier || paymentData.id;
 
     // 2. Submit payment to blockchain
     const submitRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/submit`, {
