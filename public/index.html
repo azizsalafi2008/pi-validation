@@ -4,98 +4,144 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>DocHelper App</title>
+  <!-- Pi SDK -->
   <script src="https://sdk.minepi.com/pi-sdk.js"></script>
   <style>
-    body { font-family: sans-serif; text-align: center; padding: 40px 20px; background: #f8f9fa; }
-    .btn { background: #006644; color: white; border: none; padding: 14px 24px; font-size: 16px; font-weight: bold; border-radius: 8px; cursor: pointer; margin: 10px; width: 280px; }
-    .btn-secondary { background: #4a5568; }
-    .btn-danger { background: #c53030; }
+    body {
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      min-height: 100vh;
+      margin: 0;
+      background-color: #f8fafc;
+      color: #1e293b;
+    }
+    .container {
+      width: 90%;
+      max-width: 400px;
+      text-align: center;
+      padding: 24px;
+      background: #ffffff;
+      border-radius: 12px;
+      box-shadow: 0 4px 6px -1px rgba(0,0,0,0.1);
+    }
+    h1 { margin-bottom: 8px; font-size: 24px; }
+    p { margin-bottom: 24px; color: #64748b; }
+    .btn {
+      width: 100%;
+      padding: 14px;
+      margin: 10px 0;
+      font-size: 16px;
+      font-weight: 600;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn-pay { background-color: #334155; color: white; }
+    .btn-payout { background-color: #15803d; color: white; }
   </style>
 </head>
 <body>
 
-  <h1>DocHelper App</h1>
-  <p>Pi Testnet Verification</p>
+  <div class="container">
+    <h1>DocHelper App</h1>
+    <p>Pi Testnet Verification</p>
 
-  <button class="btn btn-secondary" onclick="makeUserPayment()">1. Pay 0.1 Pi (Registers User)</button>
-  <br>
-  <button class="btn btn-danger" onclick="clearOngoingPayment()">Clear Stuck Payment</button>
-  <br>
-  <button class="btn" onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
+    <!-- Trigger Buttons -->
+    <button class="btn btn-pay" onclick="payUserToApp()">1. Pay 0.1 Pi (Registers User)</button>
+    <button class="btn btn-payout" onclick="requestPayout()">2. Receive 0.1 Test Pi (Payout)</button>
+  </div>
 
   <script>
-    Pi.init({ version: "2.0", sandbox: false });
+    let currentUserUID = null;
 
-    const scopes = ['username', 'payments', 'wallet_address'];
+    // Initialize Pi SDK for Sandbox / Testnet
+    Pi.init({ version: "2.0", sandbox: true });
 
-    async function onIncompletePaymentFound(payment) {
-      if (payment && payment.identifier) {
-        await fetch('/api/cancel', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: payment.identifier })
-        });
-      }
+    const scopes = ['payments', 'username'];
+    function onIncompletePaymentFound(payment) {
+      fetch('/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+      });
     }
 
-async function clearOngoingPayment() {
-      try {
-        const res = await fetch('/api/cancel', { method: 'POST' });
-        const data = await res.json();
-        alert("Server cleanup response: " + JSON.stringify(data));
-      } catch (err) {
-        alert("Clear error: " + err.message);
-      }
-    }
+    // Authenticate Pioneer
+    Pi.authenticate(scopes, onIncompletePaymentFound).then(function(auth) {
+      currentUserUID = auth.user.uid;
+      console.log("Authenticated UID:", currentUserUID);
+    }).catch(function(error) {
+      console.error("Authentication failed:", error);
+    });
 
-    async function makeUserPayment() {
+    // 1. User-to-App Payment Handler
+    async function payUserToApp() {
       try {
-        const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-        Pi.createPayment({
+        const paymentData = {
           amount: 0.1,
-          memo: "Register User UID for Payouts",
-          metadata: { type: "registration" }
-        }, {
-          onReadyForServerApproval: async (id) => {
-            await fetch('/api/approve', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: id }) });
+          memo: "DocHelper Test Payment",
+          metadata: { purpose: "testnet_verification" }
+        };
+
+        const callbacks = {
+          onReadyForServerApproval: async function(paymentId) {
+            const res = await fetch('/api/approve', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentId: paymentId })
+            });
+            await res.json();
           },
-          onReadyForServerCompletion: async (id, txid) => {
-            await fetch('/api/complete', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ paymentId: id, txid: txid }) });
-            alert("Payment completed!");
+          onReadyForServerCompletion: async function(paymentId, txid) {
+            const res = await fetch('/api/complete', {
+              method: 'POST',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ paymentId: paymentId, txid: txid })
+            });
+            await res.json();
+            alert("Payment successful! TxID: " + txid);
           },
-          onCancel: () => { alert("Cancelled"); },
-          onError: (err) => { alert("Error: " + err.message); }
-        });
+          onCancel: function(paymentId) {
+            alert("Payment cancelled: " + paymentId);
+          },
+          onError: function(error, payment) {
+            alert("Payment error: " + (error.message || JSON.stringify(error)));
+          }
+        };
+
+        await Pi.createPayment(paymentData, callbacks);
       } catch (err) {
-        alert("Auth error: " + err.message);
+        alert("Payment creation error: " + err.message);
       }
     }
 
+    // 2. App-to-User Payout Handler
     async function requestPayout() {
-      try {
-        const auth = await Pi.authenticate(scopes, onIncompletePaymentFound);
-        if (!auth || !auth.user || !auth.user.uid) {
-          alert("Could not retrieve user UID.");
-          return;
-        }
+      if (!currentUserUID) {
+        alert("Please tap '1. Pay 0.1 Pi' first to authenticate.");
+        return;
+      }
 
-        const res = await fetch('/api/payout', {
+      try {
+        const response = await fetch('/api/payout', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ uid: auth.user.uid, amount: 0.1 })
+          body: JSON.stringify({ uid: currentUserUID })
         });
 
-        const data = await res.json();
-        if (!res.ok) {
-          alert("Payout error: " + (data.error || data.message || JSON.stringify(data)));
+        const data = await response.json();
+        if (response.ok && data.success) {
+          alert("Success! Payout ID: " + data.paymentId);
         } else {
-          alert("Success! Payout ID: " + (data.paymentId || data.identifier || JSON.stringify(data)));
+          alert("Payout error: " + (data.error || JSON.stringify(data)));
         }
       } catch (err) {
-        alert("SDK Error: " + err.message);
+        alert("Network error: " + err.message);
       }
     }
   </script>
-
 </body>
 </html>
