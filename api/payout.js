@@ -1,3 +1,7 @@
+import StellarSdk from 'stellar-sdk';
+
+const server = new StellarSdk.Horizon.Server('https://api.testnet.minepi.com');
+
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -5,18 +9,21 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // Testnet Server API Key
-  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  // 1. YOUR TESTNET SERVER API KEY (No "Key " prefix)
+  const rawKey = "361138f95a13b12601fd35b5d8806f5841d81a685bfa210eb03d804ec0687b3ab8b9fe782a4082510c5e68060bcce737759bb621e6027870b29081b20168434b".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
+  // 2. YOUR TESTNET APP WALLET SECRET SEED (Starts with 'S...')
+  const APP_SECRET_SEED = "SDZXTXGGP3JKKLTXM5QY3CAKU4AH3Z5NSBPFQGIPOG52MR3TK62WPR6K".trim();
+
   const { uid } = req.body || {};
   if (!uid) {
-    return res.status(400).json({ error: "Missing user UID. Please tap '1. Pay 0.1 Pi' first." });
+    return res.status(400).json({ error: "Missing user UID. Tap Button 1 first." });
   }
 
   try {
-    // 1. Attempt to create the App-to-User Payment
+    // A. Create App-to-User Payment on Pi Platform
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -33,28 +40,50 @@ export default async function handler(req, res) {
       })
     });
 
-    const createData = await createRes.json();
+    let createData = await createRes.json();
     let paymentId = null;
+    let recipientAddress = null;
 
     if (createRes.ok) {
       paymentId = createData.identifier || createData.id;
+      recipientAddress = createData.to_address;
     } else if (createData.error === 'ongoing_payment_found' && createData.payment) {
-      // Automatically resolve and complete the stuck payment
       paymentId = createData.payment.identifier;
+      recipientAddress = createData.payment.to_address;
     } else {
       return res.status(createRes.status).json({
         error: `Payment creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
       });
     }
 
-    // 2. Complete the payout
+    // B. Sign & Submit Blockchain Transfer using Secret Seed
+    const sourceKeypair = StellarSdk.Keypair.fromSecret(APP_SECRET_SEED);
+    const sourceAccount = await server.loadAccount(sourceKeypair.publicKey());
+
+    const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
+      fee: '10000',
+      networkPassphrase: 'Pi Testnet'
+    })
+      .addOperation(StellarSdk.Operation.payment({
+        destination: recipientAddress,
+        asset: StellarSdk.Asset.native(),
+        amount: '0.1'
+      }))
+      .setTimeout(30)
+      .build();
+
+    transaction.sign(sourceKeypair);
+    const txResponse = await server.submitTransaction(transaction);
+    const txid = txResponse.hash;
+
+    // C. Complete Payment on Pi Platform with actual txid
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ txid: "app_to_user_payout" })
+      body: JSON.stringify({ txid: txid })
     });
 
     const completeData = await completeRes.json();
@@ -62,6 +91,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       paymentId: paymentId,
+      txid: txid,
       result: completeData
     });
 
