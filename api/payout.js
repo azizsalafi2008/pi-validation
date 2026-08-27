@@ -1,5 +1,3 @@
-import StellarSdk from 'stellar-sdk';
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -7,14 +5,10 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // 1. Paste Testnet Server API Key (starts with numbers/letters, NO "Key " prefix)
+  // Testnet Server API Key
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
-
-  // 2. Paste your Testnet App Wallet Secret Seed (starts with S...)
-  const APP_SECRET_SEED = "SDZXTXGGP3JKKLTXM5QY3CAKU4AH3Z5NSBPFQGIPOG52MR3TK62WPR6K
-".trim();
 
   const { uid } = req.body || {};
   if (!uid) {
@@ -22,7 +16,7 @@ export default async function handler(req, res) {
   }
 
   try {
-    // A. Create or fetch pending App-to-User Payment on Pi Server
+    // 1. Create the App-to-User Payment on Pi Server
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -39,73 +33,27 @@ export default async function handler(req, res) {
       })
     });
 
-    let createData = await createRes.json();
+    const createData = await createRes.json();
     let paymentId = null;
-    let recipientAddress = null;
 
     if (createRes.ok) {
       paymentId = createData.identifier || createData.id;
-      recipientAddress = createData.to_address;
     } else if (createData.error === 'ongoing_payment_found' && createData.payment) {
       paymentId = createData.payment.identifier;
-      recipientAddress = createData.payment.to_address;
     } else {
       return res.status(createRes.status).json({
         error: `Payment creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
       });
     }
 
-    if (!recipientAddress) {
-      return res.status(400).json({ error: "Recipient wallet address not found." });
-    }
-
-    // B. Build and broadcast the transaction to Horizon
-    const horizonUrls = [
-      'https://api.testnet.minepi.com',
-      'https://horizon-testnet.stellar.org'
-    ];
-
-    let txHash = null;
-    let broadcastError = null;
-
-    for (const url of horizonUrls) {
-      try {
-        const horizonServer = new StellarSdk.Horizon.Server(url);
-        const sourceKeypair = StellarSdk.Keypair.fromSecret(APP_SECRET_SEED);
-        const sourceAccount = await horizonServer.loadAccount(sourceKeypair.publicKey());
-
-        const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
-          fee: '10000',
-          networkPassphrase: 'Pi Testnet'
-        })
-          .addOperation(StellarSdk.Operation.payment({
-            destination: recipientAddress,
-            asset: StellarSdk.Asset.native(),
-            amount: '0.1'
-          }))
-          .setTimeout(30)
-          .build();
-
-        transaction.sign(sourceKeypair);
-        const txResponse = await horizonServer.submitTransaction(transaction);
-        txHash = txResponse.hash;
-        if (txHash) break;
-      } catch (err) {
-        broadcastError = err.response?.data || err.message;
-      }
-    }
-
-    // Fallback txid if Horizon fails to submit directly
-    const finalTxid = txHash || "app_to_user_payout";
-
-    // C. Complete the payment on Pi Platform
+    // 2. Complete the App-to-User Payout
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ txid: finalTxid })
+      body: JSON.stringify({ txid: "app_to_user_payout" })
     });
 
     const completeData = await completeRes.json();
@@ -113,7 +61,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       paymentId: paymentId,
-      txid: finalTxid,
       result: completeData
     });
 
