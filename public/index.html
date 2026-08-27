@@ -41,15 +41,12 @@
   // Initialize Pi SDK for Testnet
   Pi.init({ version: "2.0", sandbox: true });
 
-  // Authenticate user with wallet_address scope required for App-to-User payouts
+  // Authenticate live user with wallet_address scope
   Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
     .then(auth => {
       currentUser = auth.user;
       statusBox.innerText = `Connected as: @${currentUser.username}`;
-      const cachedUid = localStorage.getItem('pioneer_uid');
-      if (cachedUid || currentUser.uid) {
-        payoutBtn.disabled = false;
-      }
+      payoutBtn.disabled = false;
     })
     .catch(err => {
       statusBox.innerText = "Auth Error: " + err.message;
@@ -59,7 +56,7 @@
     return fetch('/api/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction.txid })
+      body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" })
     });
   }
 
@@ -70,7 +67,7 @@
 
     Pi.createPayment({
       amount: 0.1,
-      memo: "DocHelper Test Registration",
+      memo: `DocHelper Reg: ${currentUser ? currentUser.username : 'User'}`,
       metadata: { type: "testnet_reg" }
     }, {
       onReadyForServerApproval: function(paymentId) {
@@ -98,7 +95,6 @@
         })
         .then(res => res.json())
         .then(() => {
-          localStorage.setItem('pioneer_uid', currentUser.uid);
           statusBox.innerText = "Step 1 complete! Now tap Button 2.";
           payBtn.disabled = false;
           payoutBtn.disabled = false;
@@ -110,7 +106,7 @@
         });
       },
       onCancel: function(paymentId) {
-        statusBox.innerText = "Payment cancelled by user.";
+        statusBox.innerText = "Payment cancelled.";
         payBtn.disabled = false;
       },
       onError: function(error, payment) {
@@ -122,19 +118,18 @@
 
   // Step 2: App-to-User Payout
   function handlePayout() {
-    const uid = (currentUser && currentUser.uid) || localStorage.getItem('pioneer_uid');
-    if (!uid) {
-      alert("Missing User UID. Please complete Button 1 first.");
+    if (!currentUser || !currentUser.uid) {
+      alert("Authentication incomplete. Please refresh.");
       return;
     }
 
     payoutBtn.disabled = true;
-    statusBox.innerText = "Requesting payout from app wallet...";
+    statusBox.innerText = `Requesting payout for @${currentUser.username}...`;
 
     fetch('/api/payout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid })
+      body: JSON.stringify({ uid: currentUser.uid })
     })
     .then(res => res.json())
     .then(data => {
@@ -143,8 +138,8 @@
         statusBox.innerText = "Payout error: " + data.error;
         alert("Payout error: " + data.error);
       } else {
-        statusBox.innerText = "Payout completed! ID: " + data.paymentId;
-        alert("Success! App-to-User Payout completed!\nPayment ID: " + data.paymentId);
+        statusBox.innerText = `Payout OK for @${currentUser.username}! ID: ${data.paymentId}`;
+        alert(`Success for @${currentUser.username}!\nPayment ID: ${data.paymentId}`);
       }
     })
     .catch(err => {
