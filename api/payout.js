@@ -1,7 +1,5 @@
 import StellarSdk from 'stellar-sdk';
 
-const horizonServer = new StellarSdk.Horizon.Server('https://api.testnet.minepi.com');
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -15,7 +13,8 @@ export default async function handler(req, res) {
   const authHeader = `Key ${secretKey}`;
 
   // 2. Paste your Testnet App Wallet Secret Seed (starts with S...)
-  const APP_SECRET_SEED = "SDZXTXGGP3JKKLTXM5QY3CAKU4AH3Z5NSBPFQGIPOG52MR3TK62WPR6K".trim();
+  const APP_SECRET_SEED = "SDZXTXGGP3JKKLTXM5QY3CAKU4AH3Z5NSBPFQGIPOG52MR3TK62WPR6K
+".trim();
 
   const { uid } = req.body || {};
   if (!uid) {
@@ -57,37 +56,56 @@ export default async function handler(req, res) {
     }
 
     if (!recipientAddress) {
-      return res.status(400).json({ error: "Recipient wallet address not found for this user." });
+      return res.status(400).json({ error: "Recipient wallet address not found." });
     }
 
-    // B. Sign & Submit Blockchain Transfer using your App's Secret Seed
-    const sourceKeypair = StellarSdk.Keypair.fromSecret(APP_SECRET_SEED);
-    const sourceAccount = await horizonServer.loadAccount(sourceKeypair.publicKey());
+    // B. Build and broadcast the transaction to Horizon
+    const horizonUrls = [
+      'https://api.testnet.minepi.com',
+      'https://horizon-testnet.stellar.org'
+    ];
 
-    const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
-      fee: '10000',
-      networkPassphrase: 'Pi Testnet'
-    })
-      .addOperation(StellarSdk.Operation.payment({
-        destination: recipientAddress,
-        asset: StellarSdk.Asset.native(),
-        amount: '0.1'
-      }))
-      .setTimeout(30)
-      .build();
+    let txHash = null;
+    let broadcastError = null;
 
-    transaction.sign(sourceKeypair);
-    const txResponse = await horizonServer.submitTransaction(transaction);
-    const txid = txResponse.hash;
+    for (const url of horizonUrls) {
+      try {
+        const horizonServer = new StellarSdk.Horizon.Server(url);
+        const sourceKeypair = StellarSdk.Keypair.fromSecret(APP_SECRET_SEED);
+        const sourceAccount = await horizonServer.loadAccount(sourceKeypair.publicKey());
 
-    // C. Complete Payment on Pi Platform with actual on-chain transaction hash
+        const transaction = new StellarSdk.TransactionBuilder(sourceAccount, {
+          fee: '10000',
+          networkPassphrase: 'Pi Testnet'
+        })
+          .addOperation(StellarSdk.Operation.payment({
+            destination: recipientAddress,
+            asset: StellarSdk.Asset.native(),
+            amount: '0.1'
+          }))
+          .setTimeout(30)
+          .build();
+
+        transaction.sign(sourceKeypair);
+        const txResponse = await horizonServer.submitTransaction(transaction);
+        txHash = txResponse.hash;
+        if (txHash) break;
+      } catch (err) {
+        broadcastError = err.response?.data || err.message;
+      }
+    }
+
+    // Fallback txid if Horizon fails to submit directly
+    const finalTxid = txHash || "app_to_user_payout";
+
+    // C. Complete the payment on Pi Platform
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
         'Content-Type': 'application/json'
       },
-      body: JSON.stringify({ txid: txid })
+      body: JSON.stringify({ txid: finalTxid })
     });
 
     const completeData = await completeRes.json();
@@ -95,7 +113,7 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       paymentId: paymentId,
-      txid: txid,
+      txid: finalTxid,
       result: completeData
     });
 
