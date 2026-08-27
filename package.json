@@ -1,0 +1,8 @@
+{
+  "name": "pi-validation",
+  "version": "1.0.0",
+  "type": "module",
+  "dependencies": {
+    "stellar-sdk": "^12.3.0"
+  }
+}
