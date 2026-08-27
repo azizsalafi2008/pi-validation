@@ -15,7 +15,7 @@ export default async function handler(req, res) {
   const authHeader = `Key ${secretKey}`;
 
   // 2. Paste your Testnet App Wallet Secret Seed (starts with S...)
-  const APP_SECRET_SEED = "PASTE_YOUR_TESTNET_WALLET_SECRET_SEED_HERE".trim();
+  const APP_SECRET_SEED = "SDZXTXGGP3JKKLTXM5QY3CAKU4AH3Z5NSBPFQGIPOG52MR3TK62WPR6K".trim();
 
   const { uid } = req.body || {};
   if (!uid) {
