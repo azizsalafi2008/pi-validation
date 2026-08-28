@@ -71,17 +71,22 @@
       metadata: { type: "testnet_reg" }
     }, {
       onReadyForServerApproval: function(paymentId) {
-        statusBox.innerText = "Approving payment...";
+        statusBox.innerText = "Approving payment on server...";
         fetch('/api/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentId: paymentId })
         })
-        .then(() => {
-          statusBox.innerText = "Approved! Enter your passphrase / biometric.";
+        .then(async (res) => {
+          const data = await res.json();
+          if (!res.ok) {
+            alert("Approval Server Error: " + JSON.stringify(data));
+          } else {
+            statusBox.innerText = "Approved! Enter your passphrase / biometric.";
+          }
         })
         .catch(err => {
-          console.warn("Approval warning:", err);
+          alert("Approval Fetch Failed: " + err.message);
         });
       },
       onReadyForServerCompletion: function(paymentId, txid) {
