@@ -39,7 +39,7 @@
   const payoutBtn = document.getElementById('payoutBtn');
 
   // Initialize Pi SDK
-  Pi.init({ version: "2.0", sandbox: true });
+  Pi.init({ version: "2.0", sandbox: false });
 
   // Authenticate live user
   Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
