@@ -1,87 +1,159 @@
-<script>
-// Authenticate live user
-Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
-  .then(auth => {
-    currentUser = auth.user;
-    statusBox.innerText = `Connected as: @${currentUser.username}`;
-    payoutBtn.disabled = false;
-  })
-  .catch(err => {
-    statusBox.innerText = "Auth Error: " + err.message;
-  });
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DocHelper</title>
+  <!-- Pi Network SDK -->
+  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
+  <style>
+    body {
+      font-family: Arial, sans-serif;
+      text-align: center;
+      padding: 30px 15px;
+      background-color: #f8f9fa;
+      color: #333;
+    }
+    h1 {
+      font-size: 24px;
+      margin-bottom: 20px;
+    }
+    .btn {
+      display: block;
+      width: 100%;
+      max-width: 320px;
+      margin: 12px auto;
+      padding: 14px 20px;
+      font-size: 16px;
+      font-weight: bold;
+      color: #ffffff;
+      background-color: #673ab7;
+      border: none;
+      border-radius: 8px;
+      cursor: pointer;
+    }
+    .btn:disabled {
+      background-color: #cccccc;
+      cursor: not-allowed;
+    }
+    #statusBox {
+      margin-top: 25px;
+      padding: 12px;
+      font-size: 14px;
+      color: #444;
+      background-color: #ffffff;
+      border: 1px solid #ddd;
+      border-radius: 6px;
+      max-width: 320px;
+      margin-left: auto;
+      margin-right: auto;
+      word-break: break-word;
+    }
+  </style>
+</head>
+<body>
 
-function onIncompletePaymentFound(payment) {
-  return fetch('https://www.mydocassistant.online/api/complete', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ 
-      paymentId: payment.identifier, 
-      txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" 
-    })
-  });
-}
+  <h1>DocHelper</h1>
 
-// Step 1: User-to-App Payment
-function handlePayment() {
-  payBtn.disabled = true;
-  statusBox.innerText = "Opening payment window...";
+  <button id="payBtn" class="btn" onclick="handlePayment()">1. Pay 0.1 Pi</button>
+  <button id="payoutBtn" class="btn" onclick="handlePayout()" disabled>2. Receive 0.1 Test Pi</button>
 
-  Pi.createPayment({
-    amount: 0.1,
-    memo: "DocHelper App Registration",
-    metadata: { paymentType: "registration" }
-  }, {
-    onReadyForServerApproval: function(paymentId) {
-      return fetch('https://www.mydocassistant.online/api/approve', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: paymentId })
+  <div id="statusBox">Connecting to Pi Network...</div>
+
+  <script>
+    // Initialize Pi SDK in Testnet sandbox mode
+    Pi.init({ version: "2.0", sandbox: true });
+
+    const payBtn = document.getElementById("payBtn");
+    const payoutBtn = document.getElementById("payoutBtn");
+    const statusBox = document.getElementById("statusBox");
+    let currentUser = null;
+
+    // Authenticate user
+    Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
+      .then(auth => {
+        currentUser = auth.user;
+        statusBox.innerText = `Connected as: @${currentUser.username}`;
+        payoutBtn.disabled = false;
+      })
+      .catch(err => {
+        statusBox.innerText = "Auth Error: " + err.message;
       });
-    },
-    onReadyForServerCompletion: function(paymentId, txid) {
+
+    function onIncompletePaymentFound(payment) {
       return fetch('https://www.mydocassistant.online/api/complete', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+        body: JSON.stringify({ 
+          paymentId: payment.identifier, 
+          txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" 
+        })
       });
-    },
-    onCancel: function(paymentId) {
-      statusBox.innerText = "Payment cancelled.";
-      payBtn.disabled = false;
-    },
-    onError: function(error, payment) {
-      statusBox.innerText = "Payment error: " + error.message;
-      payBtn.disabled = false;
     }
-  });
-}
 
-// Step 2: App-to-User Payout
-async function handlePayout() {
-  payoutBtn.disabled = true;
-  statusBox.innerText = "Processing payout to your wallet...";
+    // Step 1: User-to-App Payment
+    function handlePayment() {
+      payBtn.disabled = true;
+      statusBox.innerText = "Opening payment window...";
 
-  try {
-    const response = await fetch('https://www.mydocassistant.online/api/payout', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-         amount: "0.1",
-         uid: currentUser.uid 
-      })
-    });
-
-    const data = await response.json();
-    
-    if (response.ok) {
-       statusBox.innerText = `Payout Successful!`;
-    } else {
-       statusBox.innerText = `Payout Failed: ${data.error || 'Unknown error'}`;
+      Pi.createPayment({
+        amount: 0.1,
+        memo: "DocHelper App Registration",
+        metadata: { paymentType: "registration" }
+      }, {
+        onReadyForServerApproval: function(paymentId) {
+          return fetch('https://www.mydocassistant.online/api/approve', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentId: paymentId })
+          });
+        },
+        onReadyForServerCompletion: function(paymentId, txid) {
+          return fetch('https://www.mydocassistant.online/api/complete', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ paymentId: paymentId, txid: txid })
+          });
+        },
+        onCancel: function(paymentId) {
+          statusBox.innerText = "Payment cancelled.";
+          payBtn.disabled = false;
+        },
+        onError: function(error, payment) {
+          statusBox.innerText = "Payment error: " + error.message;
+          payBtn.disabled = false;
+        }
+      });
     }
-  } catch (error) {
-     statusBox.innerText = `Payout Error: ${error.message}`;
-  } finally {
-     payoutBtn.disabled = false;
-  }
-}
-</script>
+
+    // Step 2: App-to-User Payout
+    async function handlePayout() {
+      payoutBtn.disabled = true;
+      statusBox.innerText = "Processing payout to your wallet...";
+
+      try {
+        const response = await fetch('https://www.mydocassistant.online/api/payout', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+             amount: "0.1",
+             uid: currentUser ? currentUser.uid : "" 
+          })
+        });
+
+        const data = await response.json();
+        
+        if (response.ok) {
+           statusBox.innerText = `Payout Successful! ID: ${data.txid || data.id || 'Complete'}`;
+        } else {
+           statusBox.innerText = `Payout Failed: ${data.error || 'Unknown error'}`;
+        }
+      } catch (error) {
+         statusBox.innerText = `Payout Error: ${error.message}`;
+      } finally {
+         payoutBtn.disabled = false;
+      }
+    }
+  </script>
+</body>
+</html>
