@@ -1,14 +1,10 @@
 export default async function handler(req, res) {
-  // CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // 1. Paste Testnet Server API Key (starts with letters/numbers, NO "Key " prefix)
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
@@ -20,8 +16,9 @@ export default async function handler(req, res) {
 
   try {
     const cleanId = String(paymentId).trim();
-    // Use the native Fetch API
-    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${cleanId}/approve`, {
+    const url = `https://api.minepi.com/v2/payments/${cleanId}/approve`;
+
+    const approveRes = await fetch(url, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -29,10 +26,21 @@ export default async function handler(req, res) {
       }
     });
 
-    const data = await approveRes.json();
+    const text = await approveRes.text();
+    let data;
+    
+    // Safely try to parse JSON. If Pi returned HTML, catch it gracefully.
+    try {
+      data = JSON.parse(text);
+    } catch (err) {
+      return res.status(502).json({
+        error: `Pi Server returned HTML instead of JSON (Status ${approveRes.status})`,
+        pi_response: text.substring(0, 150)
+      });
+    }
+
     return res.status(approveRes.status).json(data);
   } catch (error) {
-    // Return a proper JSON error if the call crashes
     return res.status(500).json({ error: error.message });
   }
 }
