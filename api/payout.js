@@ -15,35 +15,29 @@ export default async function handler(req, res) {
   }
 
   try {
-    const timestamp = Date.now();
-    
-    // 1. Create a strictly unique App-to-User Payment
-    const createRes = await fetch('https://api.minepi.com/v2/payments', {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json'
-      },
-      body: JSON.stringify({
-        payment: {
-          amount: 0.1,
-          memo: `DocHelper Payout ${timestamp}`,
-          metadata: { timestamp: timestamp, recipient_uid: uid },
-          uid: uid
-        }
-      })
-    });
+    // 1. Check if there is an ongoing stuck payment and cancel it first
+    let createRes = await createPiPayment(authHeader, uid);
+    let createData = await createRes.json();
 
-    const createData = await createRes.json();
-    let paymentId = null;
+    if (createData.error === 'ongoing_payment_found' && createData.payment) {
+      const stuckId = createData.payment.identifier;
+      
+      // Try to cancel the stuck payment
+      await fetch(`https://api.minepi.com/v2/payments/${stuckId}/cancel`, {
+        method: 'POST',
+        headers: { 'Authorization': authHeader, 'Content-Type': 'application/json' }
+      });
 
-    if (createRes.ok) {
-      paymentId = createData.identifier || createData.id;
-    } else if (createData.error === 'ongoing_payment_found' && createData.payment) {
-      paymentId = createData.payment.identifier;
-    } else {
-      return res.status(createRes.status).json({
-        error: `Creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
+      // Try creating a fresh payment again after clearing
+      createRes = await createPiPayment(authHeader, uid);
+      createData = await createRes.json();
+    }
+
+    let paymentId = createData.identifier || createData.id;
+
+    if (!paymentId) {
+      return res.status(400).json({
+        error: `Could not initialize unique payment: ${JSON.stringify(createData)}`
       });
     }
 
@@ -68,4 +62,23 @@ export default async function handler(req, res) {
   } catch (error) {
     return res.status(500).json({ error: error.message });
   }
+}
+
+function createPiPayment(authHeader, uid) {
+  const nonce = Math.random().toString(36).substring(7);
+  return fetch('https://api.minepi.com/v2/payments', {
+    method: 'POST',
+    headers: {
+      'Authorization': authHeader,
+      'Content-Type': 'application/json'
+    },
+    body: JSON.stringify({
+      payment: {
+        amount: 0.1,
+        memo: `Payout ${Date.now()}`,
+        metadata: { nonce: nonce, uid: uid },
+        uid: uid
+      }
+    })
+  });
 }
