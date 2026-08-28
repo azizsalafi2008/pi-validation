@@ -1,3 +1,4 @@
+<script>
 // Authenticate live user
 Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
   .then(auth => {
@@ -83,3 +84,4 @@ async function handlePayout() {
      payoutBtn.disabled = false;
   }
 }
+</script>
