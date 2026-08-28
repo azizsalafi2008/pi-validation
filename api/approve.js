@@ -7,9 +7,7 @@ export default async function handler(req, res) {
     'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-Length, Content-MD5, Content-Type, Date, X-Api-Version'
   );
 
-  if (req.method === 'OPTIONS') {
-    return res.status(200).end();
-  }
+  if (req.method === 'OPTIONS') return res.status(200).end();
 
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
@@ -20,26 +18,33 @@ export default async function handler(req, res) {
     return res.status(400).json({ error: "Missing paymentId" });
   }
 
-  // Sanitize ID
-  paymentId = encodeURIComponent(String(paymentId).trim());
+  const cleanId = String(paymentId).trim();
+  const endpoints = [
+    `https://api.minepi.com/v2/payments/${cleanId}/approve`,
+    `https://sandbox.minepi.com/v2/payments/${cleanId}/approve`
+  ];
 
-  try {
-    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
-      method: 'POST',
-      headers: {
-        'Authorization': authHeader,
-        'Content-Type': 'application/json'
+  let lastError = null;
+
+  for (const url of endpoints) {
+    try {
+      const response = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Authorization': authHeader,
+          'Content-Type': 'application/json'
+        }
+      });
+
+      const data = await response.json();
+      if (response.ok) {
+        return res.status(200).json(data);
       }
-    });
-
-    const data = await approveRes.json();
-    
-    if (!approveRes.ok) {
-      return res.status(approveRes.status).json(data);
+      lastError = data;
+    } catch (err) {
+      lastError = { error: err.message };
     }
-
-    return res.status(200).json(data);
-  } catch (error) {
-    return res.status(500).json({ error: error.message });
   }
+
+  return res.status(400).json(lastError);
 }
