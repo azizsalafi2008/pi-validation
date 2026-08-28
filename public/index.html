@@ -34,12 +34,11 @@
 
 <script>
   let currentUser = null;
-  const BACKEND_BASE = "https://www.mydocassistant.online";
   const statusBox = document.getElementById('statusBox');
   const payBtn = document.getElementById('payBtn');
   const payoutBtn = document.getElementById('payoutBtn');
 
-  // Initialize Pi SDK for Testnet
+  // Initialize Pi SDK
   Pi.init({ version: "2.0", sandbox: true });
 
   // Authenticate live user
@@ -54,7 +53,7 @@
     });
 
   function onIncompletePaymentFound(payment) {
-    return fetch(`${BACKEND_BASE}/api/complete`, {
+    return fetch('/api/complete', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" })
@@ -72,24 +71,22 @@
       metadata: { type: "testnet_reg" }
     }, {
       onReadyForServerApproval: function(paymentId) {
-        statusBox.innerText = "Approving payment on server...";
-        fetch(`${BACKEND_BASE}/api/approve`, {
+        statusBox.innerText = "Approving payment...";
+        fetch('/api/approve', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentId: paymentId })
         })
-        .then(res => res.json())
         .then(() => {
-          statusBox.innerText = "Approved. Awaiting user signature...";
+          statusBox.innerText = "Approved! Enter your passphrase / biometric.";
         })
         .catch(err => {
-          alert("Approval failed: " + err.message);
-          payBtn.disabled = false;
+          console.warn("Approval warning:", err);
         });
       },
       onReadyForServerCompletion: function(paymentId, txid) {
         statusBox.innerText = "Completing transaction...";
-        fetch(`${BACKEND_BASE}/api/complete`, {
+        fetch('/api/complete', {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ paymentId: paymentId, txid: txid })
@@ -127,7 +124,7 @@
     payoutBtn.disabled = true;
     statusBox.innerText = `Requesting payout for @${currentUser.username}...`;
 
-    fetch(`${BACKEND_BASE}/api/payout`, {
+    fetch('/api/payout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid: currentUser.uid })
