@@ -9,7 +9,7 @@ export default async function handler(req, res) {
   if (req.method === 'OPTIONS') return res.status(200).end();
 
   // 1. YOUR TESTNET SERVER API KEY
-  const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
+  const rawKey = "PASTE_YOUR_TESTNET_SERVER_API_KEY_HERE".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
