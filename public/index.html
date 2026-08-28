@@ -1,156 +1,85 @@
-<!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>DocHelper App - Pi Testnet Verification</title>
-  <script src="https://sdk.minepi.com/pi-sdk.js"></script>
-  <style>
-    * { box-sizing: border-box; margin: 0; padding: 0; font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; }
-    body { background-color: #f3f4f6; display: flex; align-items: center; justify-content: center; min-height: 100vh; padding: 20px; }
-    .card { background: white; padding: 32px 24px; border-radius: 16px; box-shadow: 0 4px 20px rgba(0,0,0,0.08); width: 100%; max-width: 400px; text-align: center; }
-    h1 { font-size: 24px; color: #1f2937; margin-bottom: 8px; }
-    p { font-size: 14px; color: #6b7280; margin-bottom: 24px; }
-    .status-box { background: #f9fafb; border: 1px solid #e5e7eb; padding: 12px; border-radius: 8px; font-size: 13px; color: #374151; margin-bottom: 20px; word-break: break-all; }
-    .btn { display: block; width: 100%; padding: 14px; border-radius: 8px; border: none; font-size: 15px; font-weight: 600; cursor: pointer; transition: 0.2s ease; margin-bottom: 12px; }
-    .btn-pay { background: #4f46e5; color: white; }
-    .btn-pay:hover { background: #4338ca; }
-    .btn-payout { background: #059669; color: white; }
-    .btn-payout:hover { background: #047857; }
-    .btn:disabled { background: #9ca3af; cursor: not-allowed; }
-  </style>
-</head>
-<body>
-<!-- REBUILD FORCED FOR API ROUTE FIX -->
-<div class="card">
-  <h1>DocHelper App</h1>
-  <p>Pi Testnet Verification</p>
+// Authenticate live user
+Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
+  .then(auth => {
+    currentUser = auth.user;
+    statusBox.innerText = `Connected as: @${currentUser.username}`;
+    payoutBtn.disabled = false;
+  })
+  .catch(err => {
+    statusBox.innerText = "Auth Error: " + err.message;
+  });
 
-  <div class="status-box" id="statusBox">Connecting to Pi Network...</div>
-
-  <button class="btn btn-pay" id="payBtn" onclick="handlePayment()">1. Pay 0.1 Pi (Registers User)</button>
-  <button class="btn btn-payout" id="payoutBtn" onclick="handlePayout()" disabled>2. Receive 0.1 Test Pi (Payout)</button>
-</div>
-
-<script>
-  let currentUser = null;
-  const statusBox = document.getElementById('statusBox');
-  const payBtn = document.getElementById('payBtn');
-  const payoutBtn = document.getElementById('payoutBtn');
-
-  // Initialize Pi SDK
-  Pi.init({ version: "2.0", sandbox: false });
-
-  // Authenticate live user
-  Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
-    .then(auth => {
-      currentUser = auth.user;
-      statusBox.innerText = `Connected as: @${currentUser.username}`;
-      payoutBtn.disabled = false;
+function onIncompletePaymentFound(payment) {
+  return fetch('https://www.mydocassistant.online/api/complete', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ 
+      paymentId: payment.identifier, 
+      txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" 
     })
-    .catch(err => {
-      statusBox.innerText = "Auth Error: " + err.message;
-    });
+  });
+}
 
-  function onIncompletePaymentFound(payment) {
-    return fetch('/api/complete', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" })
-    });
-  }
+// Step 1: User-to-App Payment
+function handlePayment() {
+  payBtn.disabled = true;
+  statusBox.innerText = "Opening payment window...";
 
-  // Step 1: User-to-App Payment
-  function handlePayment() {
-    payBtn.disabled = true;
-    statusBox.innerText = "Opening payment window...";
-
-    Pi.createPayment({
-      amount: 0.1,
-      memo: `DocHelper Reg: ${currentUser ? currentUser.username : 'User'}`,
-      metadata: { type: "testnet_reg" }
-    }, {
-      onReadyForServerApproval: function(paymentId) {
-        statusBox.innerText = "Approving payment on server...";
-        fetch('/api/approve', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: paymentId })
-        })
-        .then(async (res) => {
-          const data = await res.json();
-          if (!res.ok) {
-            alert("Approval Server Error: " + JSON.stringify(data));
-          } else {
-            statusBox.innerText = "Approved! Enter your passphrase / biometric.";
-          }
-        })
-        .catch(err => {
-          alert("Approval Fetch Failed: " + err.message);
-        });
-      },
-      onReadyForServerCompletion: function(paymentId, txid) {
-        statusBox.innerText = "Completing transaction...";
-        fetch('/api/complete', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId: paymentId, txid: txid })
-        })
-        .then(res => res.json())
-        .then(() => {
-          statusBox.innerText = "Step 1 complete! Now tap Button 2.";
-          payBtn.disabled = false;
-          payoutBtn.disabled = false;
-          alert("Payment confirmed! Now tap Button 2 to receive the payout.");
-        })
-        .catch(err => {
-          alert("Completion error: " + err.message);
-          payBtn.disabled = false;
-        });
-      },
-      onCancel: function(paymentId) {
-        statusBox.innerText = "Payment cancelled.";
-        payBtn.disabled = false;
-      },
-      onError: function(error, payment) {
-        statusBox.innerText = "Payment error: " + error.message;
-        payBtn.disabled = false;
-      }
-    });
-  }
-
-  // Step 2: App-to-User Payout
-  function handlePayout() {
-    if (!currentUser || !currentUser.uid) {
-      alert("Authentication incomplete. Please refresh.");
-      return;
+  Pi.createPayment({
+    amount: 0.1,
+    memo: "DocHelper App Registration",
+    metadata: { paymentType: "registration" }
+  }, {
+    onReadyForServerApproval: function(paymentId) {
+      return fetch('https://www.mydocassistant.online/api/approve', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: paymentId })
+      });
+    },
+    onReadyForServerCompletion: function(paymentId, txid) {
+      return fetch('https://www.mydocassistant.online/api/complete', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ paymentId: paymentId, txid: txid })
+      });
+    },
+    onCancel: function(paymentId) {
+      statusBox.innerText = "Payment cancelled.";
+      payBtn.disabled = false;
+    },
+    onError: function(error, payment) {
+      statusBox.innerText = "Payment error: " + error.message;
+      payBtn.disabled = false;
     }
+  });
+}
 
-    payoutBtn.disabled = true;
-    statusBox.innerText = `Requesting payout for @${currentUser.username}...`;
+// Step 2: App-to-User Payout
+async function handlePayout() {
+  payoutBtn.disabled = true;
+  statusBox.innerText = "Processing payout to your wallet...";
 
-    fetch('/api/payout', {
+  try {
+    const response = await fetch('https://www.mydocassistant.online/api/payout', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ uid: currentUser.uid })
-    })
-    .then(res => res.json())
-    .then(data => {
-      payoutBtn.disabled = false;
-      if (data.error) {
-        statusBox.innerText = "Payout error: " + data.error;
-        alert("Payout error: " + data.error);
-      } else {
-        statusBox.innerText = `Success for @${currentUser.username}! ID: ${data.paymentId}`;
-        alert(`Success for @${currentUser.username}!\nPayment ID: ${data.paymentId}`);
-      }
-    })
-    .catch(err => {
-      payoutBtn.disabled = false;
-      statusBox.innerText = "Network error: " + err.message;
-      alert("Network error: " + err.message);
+      body: JSON.stringify({
+         amount: "0.1",
+         uid: currentUser.uid 
+      })
     });
+
+    const data = await response.json();
+    
+    if (response.ok) {
+       statusBox.innerText = `Payout Successful!`;
+    } else {
+       statusBox.innerText = `Payout Failed: ${data.error || 'Unknown error'}`;
+    }
+  } catch (error) {
+     statusBox.innerText = `Payout Error: ${error.message}`;
+  } finally {
+     payoutBtn.disabled = false;
   }
-</script>
-</body>
-</html>
+}
