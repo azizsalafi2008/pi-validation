@@ -1,5 +1,4 @@
 export default async function handler(req, res) {
-  // 1. CORS Headers
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
   res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
@@ -8,18 +7,18 @@ export default async function handler(req, res) {
     return res.status(200).end();
   }
 
-  // 2. Server API Key
+  // Ensure YOUR TESTNET SERVER API KEY is pasted below without the word "Key"
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
   const { paymentId } = req.body || {};
   if (!paymentId) {
-    return res.status(200).json({ status: "ignored_missing_id" });
+    return res.status(400).json({ error: "Missing paymentId in request body" });
   }
 
   try {
-    const approveRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
+    const piResponse = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/approve`, {
       method: 'POST',
       headers: {
         'Authorization': authHeader,
@@ -27,11 +26,12 @@ export default async function handler(req, res) {
       }
     });
 
-    const data = await approveRes.json();
-    
-    // Always return 200 so the frontend doesn't hang
-    return res.status(200).json(data);
+    const responseData = await piResponse.json();
+    console.log("Pi Server Approve Response:", responseData);
+
+    return res.status(piResponse.status).json(responseData);
   } catch (error) {
-    return res.status(200).json({ status: "error_bypassed", message: error.message });
+    console.error("Approve Error:", error);
+    return res.status(500).json({ error: error.message });
   }
 }
