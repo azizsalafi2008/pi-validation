@@ -34,6 +34,7 @@
 
 <script>
   let currentUser = null;
+  const BACKEND_BASE = "https://www.mydocassistant.online";
   const statusBox = document.getElementById('statusBox');
   const payBtn = document.getElementById('payBtn');
   const payoutBtn = document.getElementById('payoutBtn');
@@ -41,7 +42,7 @@
   // Initialize Pi SDK for Testnet
   Pi.init({ version: "2.0", sandbox: true });
 
-  // Authenticate live user with wallet_address scope
+  // Authenticate live user
   Pi.authenticate(['payments', 'username', 'wallet_address'], onIncompletePaymentFound)
     .then(auth => {
       currentUser = auth.user;
@@ -53,7 +54,7 @@
     });
 
   function onIncompletePaymentFound(payment) {
-    return fetch('/api/complete', {
+    return fetch(`${BACKEND_BASE}/api/complete`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ paymentId: payment.identifier, txid: payment.transaction ? payment.transaction.txid : "incomplete_recovered" })
@@ -72,14 +73,14 @@
     }, {
       onReadyForServerApproval: function(paymentId) {
         statusBox.innerText = "Approving payment on server...";
-        fetch('/api/approve', {
+        fetch(`${BACKEND_BASE}/api/approve`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId })
+          body: JSON.stringify({ paymentId: paymentId })
         })
         .then(res => res.json())
         .then(() => {
-          statusBox.innerText = "Approved. Processing on blockchain...";
+          statusBox.innerText = "Approved. Awaiting user signature...";
         })
         .catch(err => {
           alert("Approval failed: " + err.message);
@@ -88,10 +89,10 @@
       },
       onReadyForServerCompletion: function(paymentId, txid) {
         statusBox.innerText = "Completing transaction...";
-        fetch('/api/complete', {
+        fetch(`${BACKEND_BASE}/api/complete`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ paymentId, txid })
+          body: JSON.stringify({ paymentId: paymentId, txid: txid })
         })
         .then(res => res.json())
         .then(() => {
@@ -126,7 +127,7 @@
     payoutBtn.disabled = true;
     statusBox.innerText = `Requesting payout for @${currentUser.username}...`;
 
-    fetch('/api/payout', {
+    fetch(`${BACKEND_BASE}/api/payout`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ uid: currentUser.uid })
@@ -138,7 +139,7 @@
         statusBox.innerText = "Payout error: " + data.error;
         alert("Payout error: " + data.error);
       } else {
-        statusBox.innerText = `Payout OK for @${currentUser.username}! ID: ${data.paymentId}`;
+        statusBox.innerText = `Success for @${currentUser.username}! ID: ${data.paymentId}`;
         alert(`Success for @${currentUser.username}!\nPayment ID: ${data.paymentId}`);
       }
     })
