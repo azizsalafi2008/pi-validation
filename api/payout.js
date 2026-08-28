@@ -1,6 +1,3 @@
-// Pi Testnet Horizon Endpoint
-const HORIZON_URL = "https://api.testnet.minepi.com";
-
 export default async function handler(req, res) {
   res.setHeader('Access-Control-Allow-Origin', '*');
   res.setHeader('Access-Control-Allow-Methods', 'POST, OPTIONS');
@@ -8,18 +5,19 @@ export default async function handler(req, res) {
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
-  // 1. YOUR TESTNET SERVER API KEY
   const rawKey = "x0d4ozrupxeeou2tqtun9lupvfgupqysoixie2udyjkqfbftvzl1fmjdd3gqw3er".trim();
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
   const { uid } = req.body || {};
   if (!uid) {
-    return res.status(400).json({ error: "Missing user UID. Please complete Step 1 first." });
+    return res.status(400).json({ error: "Missing user UID. Tap Button 1 first." });
   }
 
   try {
-    // A. Create App-to-User Payment Order on Pi Platform
+    const timestamp = Date.now();
+    
+    // 1. Create a strictly unique App-to-User Payment
     const createRes = await fetch('https://api.minepi.com/v2/payments', {
       method: 'POST',
       headers: {
@@ -29,31 +27,27 @@ export default async function handler(req, res) {
       body: JSON.stringify({
         payment: {
           amount: 0.1,
-          memo: "DocHelper Test Payout",
-          metadata: { purpose: "testnet_validation" },
+          memo: `DocHelper Payout ${timestamp}`,
+          metadata: { timestamp: timestamp, recipient_uid: uid },
           uid: uid
         }
       })
     });
 
-    let createData = await createRes.json();
+    const createData = await createRes.json();
     let paymentId = null;
-    let recipientAddress = null;
 
     if (createRes.ok) {
       paymentId = createData.identifier || createData.id;
-      recipientAddress = createData.to_address;
     } else if (createData.error === 'ongoing_payment_found' && createData.payment) {
       paymentId = createData.payment.identifier;
-      recipientAddress = createData.payment.to_address;
     } else {
       return res.status(createRes.status).json({
-        error: `Payment creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
+        error: `Creation failed: ${createData.error_message || createData.message || JSON.stringify(createData)}`
       });
     }
 
-    // B. Finalize App-to-User Payment
-    // For App-to-User validation, pass the server payment identifier as the transaction proof
+    // 2. Complete payment
     const completeRes = await fetch(`https://api.minepi.com/v2/payments/${paymentId}/complete`, {
       method: 'POST',
       headers: {
@@ -68,7 +62,6 @@ export default async function handler(req, res) {
     return res.status(200).json({
       success: true,
       paymentId: paymentId,
-      txid: paymentId,
       result: completeData
     });
 
