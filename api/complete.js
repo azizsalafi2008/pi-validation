@@ -1,11 +1,7 @@
 export default async function handler(req, res) {
-  res.setHeader('Access-Control-Allow-Credentials', 'true');
   res.setHeader('Access-Control-Allow-Origin', '*');
-  res.setHeader('Access-Control-Allow-Methods', 'GET,OPTIONS,PATCH,DELETE,POST,PUT');
-  res.setHeader(
-    'Access-Control-Allow-Headers',
-    'X-CSRF-Token, X-Requested-With, Accept, Accept-Version, Content-MD5, Content-Type, Date, X-Api-Version'
-  );
+  res.setHeader('Access-Control-Allow-Methods', 'GET,POST,OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization');
 
   if (req.method === 'OPTIONS') return res.status(200).end();
 
@@ -13,39 +9,38 @@ export default async function handler(req, res) {
   const secretKey = rawKey.replace(/^Key\s+/i, '');
   const authHeader = `Key ${secretKey}`;
 
-  let { paymentId, txid } = req.body || {};
+  const { paymentId, txid } = req.body || {};
   if (!paymentId) {
     return res.status(400).json({ error: "Missing paymentId" });
   }
 
-  const cleanId = String(paymentId).trim();
-  const endpoints = [
-    `https://api.minepi.com/v2/payments/${cleanId}/complete`,
-    `https://sandbox.minepi.com/v2/payments/${cleanId}/complete`
-  ];
+  try {
+    const cleanId = String(paymentId).trim();
+    const url = `https://api.minepi.com/v2/payments/${cleanId}/complete`;
 
-  let lastError = null;
+    const completeRes = await fetch(url, {
+      method: 'POST',
+      headers: {
+        'Authorization': authHeader,
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({ txid: txid || "direct_txid" })
+    });
 
-  for (const url of endpoints) {
+    const text = await completeRes.text();
+    let data;
+
     try {
-      const response = await fetch(url, {
-        method: 'POST',
-        headers: {
-          'Authorization': authHeader,
-          'Content-Type': 'application/json'
-        },
-        body: JSON.stringify({ txid: txid || "default_txid" })
-      });
-
-      const data = await response.json();
-      if (response.ok) {
-        return res.status(200).json(data);
-      }
-      lastError = data;
+      data = JSON.parse(text);
     } catch (err) {
-      lastError = { error: err.message };
+      return res.status(502).json({
+        error: `Pi Server returned HTML instead of JSON (Status ${completeRes.status})`,
+        pi_response: text.substring(0, 150)
+      });
     }
-  }
 
-  return res.status(400).json(lastError);
+    return res.status(completeRes.status).json(data);
+  } catch (error) {
+    return res.status(500).json({ error: error.message });
+  }
 }
