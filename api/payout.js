@@ -1,5 +1,5 @@
 
-import * as StellarSdk from 'stellar-sdk';
+const StellarSdk = require('stellar-sdk');
 
 // Configure the Pi Testnet Horizon server
 const server = new StellarSdk.Server('https://api.testnet.minepi.com');
