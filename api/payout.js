@@ -1,3 +1,4 @@
+
 import * as StellarSdk from 'stellar-sdk';
 
 // Configure the Pi Testnet Horizon server
@@ -31,6 +32,7 @@ export default async function handler(req, res) {
     let createRes = await createPiPayment(authHeader, uid);
     let createData = await createRes.json();
 
+    // Clear stuck transactions if they exist
     if (createData.error === 'ongoing_payment_found' && createData.payment) {
       const stuckId = createData.payment.identifier;
       await fetch(`https://api.minepi.com/v2/payments/${stuckId}/cancel`, {
@@ -101,6 +103,7 @@ export default async function handler(req, res) {
 
   } catch (error) {
     let errorMessage = error.message;
+    // Extract the specific Stellar blockchain error code if it crashes
     if (error.response && error.response.data && error.response.data.extras) {
       errorMessage = JSON.stringify(error.response.data.extras.result_codes);
     }
