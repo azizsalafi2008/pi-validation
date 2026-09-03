@@ -2,7 +2,7 @@
 const StellarSdk = require('stellar-sdk');
 
 // Configure the Pi Testnet Horizon server
-const server = new StellarSdk.Server('https://api.testnet.minepi.com');
+const server = new StellarSdk.Horizon.Server('https://api.testnet.minepi.com');
 const networkPassphrase = 'Pi Testnet';
 
 export default async function handler(req, res) {
